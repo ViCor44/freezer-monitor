@@ -1,0 +1,57 @@
+/* ── Global ─────────────────────────────────────────────── */
+:root {
+    --fm-primary: #0d6efd;
+}
+
+body {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main.container-fluid {
+    flex: 1;
+}
+
+/* ── Icon boxes ─────────────────────────────────────────── */
+.icon-box {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* ── Navbar ─────────────────────────────────────────────── */
+.navbar-brand {
+    font-size: 1.1rem;
+}
+
+/* ── Cards ──────────────────────────────────────────────── */
+.card {
+    border-radius: .75rem;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: .75rem .75rem 0 0 !important;
+    padding: .75rem 1rem;
+}
+
+/* ── Tables ─────────────────────────────────────────────── */
+.table td, .table th {
+    vertical-align: middle;
+}
+
+/* ── Auth pages ─────────────────────────────────────────── */
+.min-vh-100 {
+    min-height: 100vh !important;
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+.footer {
+    margin-top: auto;
+}
