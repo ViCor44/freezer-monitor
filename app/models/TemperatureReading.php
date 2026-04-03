@@ -3,10 +3,18 @@
 require_once __DIR__ . '/../../config/Database.php';
 
 class TemperatureReading {
-    private PDO $db;
+    private $db;
+    private $table = 'temperature_readings';
 
-    public function __construct() {
-        $this->db = Database::getConnection();
+    public function __construct($db) {  // ← Recebe $db
+        $this->db = $db;
+    }
+
+    public function getLatest($device_id, $limit = 100) {
+        $sql = "SELECT * FROM {$this->table} WHERE device_id = ? ORDER BY created_at DESC LIMIT ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$device_id, $limit]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function create(int $deviceId, float $temperature, ?float $humidity = null, ?float $battery = null, ?int $rssi = null, ?float $snr = null): int {
@@ -50,6 +58,19 @@ class TemperatureReading {
              ORDER BY recorded_date ASC'
         );
         $stmt->execute([$deviceId]);
+        return $stmt->fetchAll();
+    }
+
+    public function getByRange(int $deviceId, string $from, string $to): array {
+        $stmt = $this->db->prepare(
+            'SELECT temperature, humidity, recorded_at
+             FROM temperature_readings
+             WHERE device_id = ?
+               AND recorded_at >= ?
+               AND recorded_at <= ?
+             ORDER BY recorded_at ASC'
+        );
+        $stmt->execute([$deviceId, $from, $to]);
         return $stmt->fetchAll();
     }
 

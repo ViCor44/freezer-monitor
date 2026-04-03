@@ -22,23 +22,28 @@
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
                     <a class="nav-link" href="<?= BASE_URL ?>/dashboard">
-                        <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                        <i class="bi bi-speedometer2 me-1"></i>Painel
                     </a>
                 </li>
                 <?php if (Auth::isAdmin()): ?>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                        <i class="bi bi-gear me-1"></i>Admin
+                        <i class="bi bi-gear me-1"></i>Administracao
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="<?= BASE_URL ?>/admin/users"><i class="bi bi-people me-2"></i>Users</a></li>
-                        <li><a class="dropdown-item" href="<?= BASE_URL ?>/admin/devices"><i class="bi bi-cpu me-2"></i>Devices</a></li>
-                        <li><a class="dropdown-item" href="<?= BASE_URL ?>/admin/alerts"><i class="bi bi-bell me-2"></i>Alerts</a></li>
+                        <li><a class="dropdown-item" href="<?= BASE_URL ?>/admin/users"><i class="bi bi-people me-2"></i>Utilizadores</a></li>
+                        <li><a class="dropdown-item" href="<?= BASE_URL ?>/admin/devices"><i class="bi bi-cpu me-2"></i>Dispositivos</a></li>
+                        <li><a class="dropdown-item" href="<?= BASE_URL ?>/admin/alerts"><i class="bi bi-bell me-2"></i>Alertas</a></li>
                     </ul>
                 </li>
                 <?php endif; ?>
             </ul>
             <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <button type="button" id="themeToggleBtn" class="btn btn-outline-light btn-sm me-2" title="Alternar modo escuro">
+                        <i class="bi bi-moon-stars"></i>
+                    </button>
+                </li>
                 <li class="nav-item">
                     <span class="navbar-text me-3">
                         <i class="bi bi-person-circle me-1"></i><?= htmlspecialchars($_SESSION['user_name'] ?? '') ?>
@@ -48,7 +53,7 @@
                     <form method="post" action="<?= BASE_URL ?>/logout" class="d-inline">
                         <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
                         <button type="submit" class="btn btn-outline-light btn-sm">
-                            <i class="bi bi-box-arrow-right me-1"></i>Logout
+                            <i class="bi bi-box-arrow-right me-1"></i>Terminar sessao
                         </button>
                     </form>
                 </li>

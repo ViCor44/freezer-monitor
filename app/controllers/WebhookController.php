@@ -6,14 +6,21 @@ require_once __DIR__ . '/../../app/models/TemperatureReading.php';
 require_once __DIR__ . '/../../app/models/Alert.php';
 
 class WebhookController {
+    private $db;
     private Device $deviceModel;
     private TemperatureReading $readingModel;
     private Alert $alertModel;
 
-    public function __construct() {
-        $this->deviceModel  = new Device();
-        $this->readingModel = new TemperatureReading();
-        $this->alertModel   = new Alert();
+    public function __construct($db = null) {
+        if ($db === null) {
+            $database = new Database();
+            $db = $database->connect();
+        }
+
+        $this->db = $db;
+        $this->deviceModel = new Device($db);
+        $this->readingModel = new TemperatureReading($db);
+        $this->alertModel = new Alert($db);
     }
 
     /**
@@ -31,7 +38,7 @@ class WebhookController {
 
         if (!$payload || !isset($payload['deviceInfo']['devEui'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'Invalid payload']);
+            echo json_encode(['error' => 'Payload invalido']);
             exit;
         }
 
@@ -40,7 +47,7 @@ class WebhookController {
 
         if (!$device || !$device['active']) {
             http_response_code(404);
-            echo json_encode(['error' => 'Device not found or inactive']);
+            echo json_encode(['error' => 'Dispositivo nao encontrado ou inativo']);
             exit;
         }
 
@@ -56,7 +63,7 @@ class WebhookController {
 
         if ($temperature === null) {
             http_response_code(422);
-            echo json_encode(['error' => 'No temperature in payload']);
+            echo json_encode(['error' => 'Sem temperatura no payload']);
             exit;
         }
 
@@ -75,19 +82,19 @@ class WebhookController {
 
     private function checkAlerts(array $device, float $temperature): void {
         if ($temperature > $device['temp_max']) {
-            if (!$this->alertModel->hasOpenAlert($device['id'], ALERT_HIGH)) {
+            if (!$this->alertModel->hasOpenAlert($device['id'], ALERT_TEMP_HIGH)) {
                 $this->alertModel->create(
                     $device['id'],
-                    ALERT_HIGH,
+                    ALERT_TEMP_HIGH,
                     "Temperature {$temperature}°C exceeds maximum {$device['temp_max']}°C on {$device['name']}",
                     $temperature
                 );
             }
         } elseif ($temperature < $device['temp_min']) {
-            if (!$this->alertModel->hasOpenAlert($device['id'], ALERT_LOW)) {
+            if (!$this->alertModel->hasOpenAlert($device['id'], ALERT_TEMP_LOW)) {
                 $this->alertModel->create(
                     $device['id'],
-                    ALERT_LOW,
+                    ALERT_TEMP_LOW,
                     "Temperature {$temperature}°C below minimum {$device['temp_min']}°C on {$device['name']}",
                     $temperature
                 );

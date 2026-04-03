@@ -2,8 +2,21 @@
 
 declare(strict_types=1);
 
-// ── Bootstrap ──────────────────────────────────────────────────────────────
 $root = dirname(__DIR__);
+
+// Load .env PRIMEIRO
+$envFile = $root . '/.env';
+if (file_exists($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        if (strpos($line, '=') !== false) {
+            [$key, $value] = explode('=', $line, 2);
+            putenv(trim($key) . '=' . trim($value));
+        }
+    }
+}
+
+// Carregar constantes
 require $root . '/config/constants.php';
 require $root . '/config/Database.php';
 require $root . '/app/middleware/Auth.php';
@@ -16,31 +29,32 @@ require $root . '/app/controllers/DashboardController.php';
 require $root . '/app/controllers/AdminController.php';
 require $root . '/app/controllers/WebhookController.php';
 
-// Load .env if present
-$envFile = $root . '/.env';
-if (file_exists($envFile)) {
-    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (strpos(trim($line), '#') === 0) continue;
-        if (strpos($line, '=') !== false) {
-            [$key, $value] = explode('=', $line, 2);
-            putenv(trim($key) . '=' . trim($value));
-        }
-    }
-}
-
-// ── Session ────────────────────────────────────────────────────────────────
+// Session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// ── Routing ────────────────────────────────────────────────────────────────
+// ✅ INICIALIZAR DATABASE AQUI
+$database = new Database();
+$db = $database->connect();
+
+if (!$db) {
+    die('Database connection failed');
+}
+
+// Routing
 $uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Strip base path if app is in a subdirectory
-$basePath = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+$basePath = parse_url(BASE_URL, PHP_URL_PATH) ?: '';
+$basePath = rtrim($basePath, '/');
 if ($basePath !== '' && strpos($uri, $basePath) === 0) {
     $uri = substr($uri, strlen($basePath));
+}
+
+// Support direct /public access without changing route definitions.
+if (strpos($uri, '/public/') === 0) {
+    $uri = substr($uri, strlen('/public'));
 }
 
 $uri = '/' . ltrim($uri, '/');
@@ -53,6 +67,7 @@ $routes = [
         '/logout'              => ['AuthController',      'logout'],
         '/pending'             => ['AuthController',      'pending'],
         '/dashboard'           => ['DashboardController', 'index'],
+        '/dashboard/device'    => ['DashboardController', 'deviceDetails'],
         '/dashboard/chart'     => ['DashboardController', 'chartData'],
         '/admin/users'         => ['AdminController',     'users'],
         '/admin/devices'       => ['AdminController',     'devices'],
@@ -78,9 +93,11 @@ $handler = $routes[$method][$uri] ?? null;
 
 if ($handler) {
     [$controllerClass, $action] = $handler;
-    $controller = new $controllerClass();
+    
+    // ✅ PASSAR $db AO CONTROLLER
+    $controller = new $controllerClass($db);
     $controller->$action();
 } else {
     http_response_code(404);
-    echo '<!DOCTYPE html><html><body><h1>404 Not Found</h1><p><a href="' . BASE_URL . '/login">Go home</a></p></body></html>';
+    echo '<!DOCTYPE html><html><body><h1>404 Nao encontrado</h1><p><a href="' . BASE_URL . '/login">Ir para inicio</a></p></body></html>';
 }

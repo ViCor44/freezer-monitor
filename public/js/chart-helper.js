@@ -10,8 +10,9 @@ const _charts = {};
  * @param {number} deviceId
  * @param {string} period  '24h' | '7d' | '30d'
  * @param {HTMLElement|null} btn  - active button element (optional)
+ * @param {{canvasId?: string, from?: string, to?: string}} options
  */
-async function loadChart(deviceId, period, btn) {
+async function loadChart(deviceId, period, btn, options = {}) {
     // Update active button in the group
     if (btn) {
         const group = btn.closest('.btn-group');
@@ -22,41 +23,55 @@ async function loadChart(deviceId, period, btn) {
     }
 
     try {
-        const res  = await fetch(`${window.BASE_URL || ''}/dashboard/chart?device_id=${deviceId}&period=${period}`);
+        const params = new URLSearchParams();
+        params.set('device_id', String(deviceId));
+
+        if (options.from && options.to) {
+            params.set('from', options.from);
+            params.set('to', options.to);
+        } else {
+            params.set('period', period);
+        }
+
+        const res = await fetch(`${window.BASE_URL || ''}/dashboard/chart?${params.toString()}`);
         if (!res.ok) return;
         const data = await res.json();
 
-        const canvas = document.getElementById(`chart-${deviceId}`);
+        const canvasId = options.canvasId || `chart-${deviceId}`;
+        const canvas = document.getElementById(canvasId);
         if (!canvas) return;
 
         // Format labels
         const labels = data.labels.map(l => {
             const d = new Date(l);
             if (period === '24h') return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            if (period === 'custom') {
+                return d.toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+            }
             return d.toLocaleDateString([], {month: 'short', day: 'numeric'});
         });
 
         // Destroy existing chart
-        if (_charts[deviceId]) {
-            _charts[deviceId].destroy();
+        if (_charts[canvasId]) {
+            _charts[canvasId].destroy();
         }
 
-        _charts[deviceId] = new Chart(canvas, {
+        _charts[canvasId] = new Chart(canvas, {
             type: 'line',
             data: {
                 labels,
                 datasets: [
                     {
-                        label: 'Temperature (°C)',
+                        label: 'Temperatura (°C)',
                         data: data.temperature,
                         borderColor: '#0d6efd',
                         backgroundColor: 'rgba(13,110,253,0.08)',
                         tension: 0.3,
                         fill: true,
-                        pointRadius: period === '24h' ? 3 : 4,
+                        pointRadius: period === '24h' ? 3 : 2,
                     },
                     {
-                        label: 'Humidity (%)',
+                        label: 'Humidade (%)',
                         data: data.humidity,
                         borderColor: '#20c997',
                         backgroundColor: 'rgba(32,201,151,0.08)',
@@ -101,6 +116,6 @@ async function loadChart(deviceId, period, btn) {
             }
         });
     } catch (e) {
-        console.warn('Chart load error:', e);
+        console.warn('Erro ao carregar grafico:', e);
     }
 }

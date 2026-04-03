@@ -1,19 +1,23 @@
 # Freezer Monitor
 
-This project monitors freezer temperatures and alerts users if temperatures exceed certain thresholds.
+Aplicacao PHP para monitorizacao de temperatura de congeladores com alertas e painel administrativo.
 
 ## Installation
 
-To install the required dependencies, run:
+1. Colocar o projeto em `c:\xampp\htdocs\freezer-monitor`.
+2. Importar `database/init.sql` no MySQL (phpMyAdmin).
+3. Configurar o ficheiro `.env` com as credenciais da base de dados.
+4. Iniciar Apache e MySQL no XAMPP.
 
-```
-pip install -r requirements.txt
-```
+## URLs
+
+- Entrada recomendada: `http://localhost/freezer-monitor`
+- Entrada direta: `http://localhost/freezer-monitor/public`
 
 ## Usage
 
-Run the main application:
+Depois de iniciar sessao, o sistema permite:
 
-```
-python src/main.py
-```
+- Ver estado dos dispositivos e leitura atual
+- Consultar historico e graficos
+- Gerir utilizadores, dispositivos e alertas (admin)

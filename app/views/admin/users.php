@@ -1,10 +1,10 @@
 <?php require_once __DIR__ . '/../../../config/constants.php'; ?>
 <?php require_once __DIR__ . '/../../../app/middleware/Auth.php'; ?>
-<?php $pageTitle = 'User Management'; ?>
+<?php $pageTitle = 'Gestao de utilizadores'; ?>
 <?php require __DIR__ . '/../layouts/header.php'; ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>User Management</h4>
+    <h4 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>Gestao de utilizadores</h4>
 </div>
 
 <div class="card shadow-sm border-0">
@@ -12,12 +12,12 @@
         <table class="table table-hover mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>Name</th>
+                    <th>Nome</th>
                     <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Registered</th>
-                    <th class="text-end">Actions</th>
+                    <th>Perfil</th>
+                    <th>Estado</th>
+                    <th>Registado</th>
+                    <th class="text-end">Acoes</th>
                 </tr>
             </thead>
             <tbody>
@@ -32,7 +32,7 @@
                     </td>
                     <td>
                         <span class="badge bg-<?= $user['approved'] ? 'success' : 'warning text-dark' ?>">
-                            <?= $user['approved'] ? 'Approved' : 'Pending' ?>
+                            <?= $user['approved'] ? 'Aprovado' : 'Pendente' ?>
                         </span>
                     </td>
                     <td><?= date('Y-m-d', strtotime($user['created_at'])) ?></td>
@@ -41,17 +41,17 @@
                         <form method="post" action="<?= BASE_URL ?>/admin/users/approve" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
                             <input type="hidden" name="id" value="<?= $user['id'] ?>">
-                            <button class="btn btn-sm btn-success"><i class="bi bi-check2"></i> Approve</button>
+                            <button class="btn btn-sm btn-success"><i class="bi bi-check2"></i> Aprovar</button>
                         </form>
                         <?php else: ?>
                         <form method="post" action="<?= BASE_URL ?>/admin/users/revoke" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
                             <input type="hidden" name="id" value="<?= $user['id'] ?>">
-                            <button class="btn btn-sm btn-warning"><i class="bi bi-slash-circle"></i> Revoke</button>
+                            <button class="btn btn-sm btn-warning"><i class="bi bi-slash-circle"></i> Revogar</button>
                         </form>
                         <?php endif; ?>
                         <form method="post" action="<?= BASE_URL ?>/admin/users/delete" class="d-inline"
-                              onsubmit="return confirm('Delete this user?')">
+                              onsubmit="return confirm('Eliminar este utilizador?')">
                             <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
                             <input type="hidden" name="id" value="<?= $user['id'] ?>">
                             <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>

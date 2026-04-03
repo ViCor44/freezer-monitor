@@ -8,7 +8,7 @@ class Auth {
             session_start();
         }
 
-        if (empty($_SESSION[SESSION_USER_ID])) {
+        if (empty($_SESSION['user_id'])) {
             header('Location: ' . BASE_URL . '/login');
             exit;
         }
@@ -17,7 +17,7 @@ class Auth {
     public static function requireApproved(): void {
         self::requireLogin();
 
-        if (empty($_SESSION[SESSION_USER_APPROVED])) {
+        if (empty($_SESSION['user_approved'])) {
             header('Location: ' . BASE_URL . '/pending');
             exit;
         }
@@ -26,7 +26,7 @@ class Auth {
     public static function requireAdmin(): void {
         self::requireApproved();
 
-        if ($_SESSION[SESSION_USER_ROLE] !== ROLE_ADMIN) {
+        if (($_SESSION['user_role'] ?? null) !== ROLE_ADMIN) {
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
         }
@@ -36,15 +36,15 @@ class Auth {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
-        return !empty($_SESSION[SESSION_USER_ID]);
+        return !empty($_SESSION['user_id']);
     }
 
     public static function isAdmin(): bool {
-        return self::isLoggedIn() && $_SESSION[SESSION_USER_ROLE] === ROLE_ADMIN;
+        return self::isLoggedIn() && ($_SESSION['user_role'] ?? null) === ROLE_ADMIN;
     }
 
     public static function userId(): ?int {
-        return isset($_SESSION[SESSION_USER_ID]) ? (int) $_SESSION[SESSION_USER_ID] : null;
+        return isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
     }
 
     public static function csrfToken(): string {

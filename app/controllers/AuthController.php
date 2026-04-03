@@ -1,135 +1,92 @@
 <?php
 
-require_once __DIR__ . '/../../config/constants.php';
-require_once __DIR__ . '/../../app/models/User.php';
-require_once __DIR__ . '/../../app/middleware/Auth.php';
-
 class AuthController {
-    private User $userModel;
+    private $db;
+    private $userModel;
 
-    public function __construct() {
-        $this->userModel = new User();
-    }
-
-    public function loginPage(): void {
-        if (Auth::isLoggedIn()) {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
+    public function __construct($db = null) {  // ← Adicione $db = null
+        // Se não receber $db do router, tente obter da classe Database
+        if ($db === null) {
+            $database = new Database();
+            $db = $database->connect();
         }
-        $csrf = Auth::csrfToken();
-        $error = $_SESSION['flash_error'] ?? '';
-        unset($_SESSION['flash_error']);
-        require __DIR__ . '/../views/auth/login.php';
+        $this->db = $db;
+        $this->userModel = new User($db);  // ← Passe $db ao modelo
     }
 
-    public function login(): void {
+    public function loginPage() {
+        require ROOT . '/app/views/auth/login.php';
+    }
+
+    public function registerPage() {
+        require ROOT . '/app/views/auth/register.php';
+    }
+
+    public function login() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header('Location: ' . BASE_URL . '/login');
-            exit;
+            $this->loginPage();
+            return;
         }
 
-        $token = $_POST['csrf_token'] ?? '';
-        if (!Auth::verifyCsrf($token)) {
-            $_SESSION['flash_error'] = 'Invalid CSRF token.';
-            header('Location: ' . BASE_URL . '/login');
-            exit;
-        }
-
-        $email    = trim($_POST['email'] ?? '');
+        $email = $_POST['email'] ?? '';
         $password = $_POST['password'] ?? '';
 
-        $user = $this->userModel->findByEmail($email);
+        $user = $this->userModel->login($email, $password);
 
-        if (!$user || !password_verify($password, $user['password'])) {
-            $_SESSION['flash_error'] = 'Invalid email or password.';
-            header('Location: ' . BASE_URL . '/login');
+        if ($user) {
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_name'] = $user['name'];
+            $_SESSION['user_email'] = $user['email'];
+            $_SESSION['user_role'] = $user['role'];
+            $_SESSION['user_approved'] = (int) ($user['approved'] ?? 0);
+
+            if (empty($user['approved'])) {
+                header('Location: ' . BASE_URL . '/pending');
+            } else {
+                header('Location: ' . BASE_URL . '/dashboard');
+            }
             exit;
+        } else {
+            $error = 'Email ou palavra-passe invalido.';
+            require ROOT . '/app/views/auth/login.php';
         }
-
-        session_regenerate_id(true);
-        $_SESSION[SESSION_USER_ID]       = $user['id'];
-        $_SESSION[SESSION_USER_ROLE]     = $user['role'];
-        $_SESSION[SESSION_USER_NAME]     = $user['name'];
-        $_SESSION[SESSION_USER_APPROVED] = (bool) $user['approved'];
-
-        header('Location: ' . BASE_URL . '/dashboard');
-        exit;
     }
 
-    public function registerPage(): void {
-        if (Auth::isLoggedIn()) {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
-        $csrf  = Auth::csrfToken();
-        $error = $_SESSION['flash_error'] ?? '';
-        unset($_SESSION['flash_error']);
-        require __DIR__ . '/../views/auth/register.php';
-    }
-
-    public function register(): void {
+    public function register() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header('Location: ' . BASE_URL . '/register');
-            exit;
+            $this->registerPage();
+            return;
         }
 
-        $token = $_POST['csrf_token'] ?? '';
-        if (!Auth::verifyCsrf($token)) {
-            $_SESSION['flash_error'] = 'Invalid CSRF token.';
-            header('Location: ' . BASE_URL . '/register');
-            exit;
-        }
-
-        $name     = trim($_POST['name'] ?? '');
-        $email    = trim($_POST['email'] ?? '');
+        $name = $_POST['name'] ?? '';
+        $email = $_POST['email'] ?? '';
         $password = $_POST['password'] ?? '';
-        $confirm  = $_POST['password_confirm'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
 
-        if (!$name || !$email || !$password) {
-            $_SESSION['flash_error'] = 'All fields are required.';
-            header('Location: ' . BASE_URL . '/register');
-            exit;
+        if ($password !== $confirm_password) {
+            $error = 'As palavras-passe nao coincidem.';
+            require ROOT . '/app/views/auth/register.php';
+            return;
         }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $_SESSION['flash_error'] = 'Invalid email address.';
-            header('Location: ' . BASE_URL . '/register');
-            exit;
+        if ($this->userModel->register($name, $email, $password)) {
+            $success = 'Registo efetuado com sucesso! Aguarda aprovacao de administrador.';
+            require ROOT . '/app/views/auth/register.php';
+        } else {
+            $error = 'Falha no registo. O email pode ja existir.';
+            require ROOT . '/app/views/auth/register.php';
         }
-
-        if (strlen($password) < 8) {
-            $_SESSION['flash_error'] = 'Password must be at least 8 characters.';
-            header('Location: ' . BASE_URL . '/register');
-            exit;
-        }
-
-        if ($password !== $confirm) {
-            $_SESSION['flash_error'] = 'Passwords do not match.';
-            header('Location: ' . BASE_URL . '/register');
-            exit;
-        }
-
-        if ($this->userModel->findByEmail($email)) {
-            $_SESSION['flash_error'] = 'Email already registered.';
-            header('Location: ' . BASE_URL . '/register');
-            exit;
-        }
-
-        $this->userModel->create($name, $email, $password);
-        $_SESSION['flash_success'] = 'Registration successful. Please wait for admin approval.';
-        header('Location: ' . BASE_URL . '/login');
-        exit;
     }
 
-    public function logout(): void {
-        Auth::requireLogin();
+    public function pending() {
+        require ROOT . '/app/views/auth/pending.php';
+    }
+
+    public function logout() {
         session_destroy();
         header('Location: ' . BASE_URL . '/login');
         exit;
     }
-
-    public function pending(): void {
-        Auth::requireLogin();
-        require __DIR__ . '/../views/auth/pending.php';
-    }
 }
+?>

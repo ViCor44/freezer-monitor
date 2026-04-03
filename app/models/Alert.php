@@ -2,11 +2,30 @@
 
 require_once __DIR__ . '/../../config/Database.php';
 
-class Alert {
-    private PDO $db;
+// Define alert status constants
+if (!defined('ALERT_STATUS_OPEN')) {
+    define('ALERT_STATUS_OPEN', 'open');
+}
+if (!defined('ALERT_STATUS_ACKNOWLEDGED')) {
+    define('ALERT_STATUS_ACKNOWLEDGED', 'acknowledged');
+}
+if (!defined('ALERT_STATUS_RESOLVED')) {
+    define('ALERT_STATUS_RESOLVED', 'resolved');
+}
 
-    public function __construct() {
-        $this->db = Database::getConnection();
+class Alert {
+    private $db;
+    private $table = 'alerts';
+
+    public function __construct($db) {  // ← Recebe $db
+        $this->db = $db;
+    }
+
+    public function getAll() {
+        $sql = "SELECT * FROM {$this->table} ORDER BY created_at DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function create(int $deviceId, string $type, string $message, ?float $temperature = null): int {
@@ -15,22 +34,6 @@ class Alert {
         );
         $stmt->execute([$deviceId, $type, $message, $temperature]);
         return (int) $this->db->lastInsertId();
-    }
-
-    public function getAll(string $status = ''): array {
-        $sql = 'SELECT a.*, d.name AS device_name FROM alerts a
-                INNER JOIN devices d ON d.id = a.device_id';
-        $params = [];
-
-        if ($status !== '') {
-            $sql .= ' WHERE a.status = ?';
-            $params[] = $status;
-        }
-
-        $sql .= ' ORDER BY a.created_at DESC';
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll();
     }
 
     public function findById(int $id): array|false {

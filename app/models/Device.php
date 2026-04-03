@@ -2,21 +2,44 @@
 
 require_once __DIR__ . '/../../config/Database.php';
 
+if (!defined('TEMP_MAX')) {
+    define('TEMP_MAX', 0);
+}
+if (!defined('TEMP_MIN')) {
+    define('TEMP_MIN', -25);
+}
+
 class Device {
-    private PDO $db;
+    private $db;
+    private $table = 'devices';
 
-    public function __construct() {
-        $this->db = Database::getConnection();
+    public function __construct($db) {  // ← Recebe $db
+        $this->db = $db;
     }
 
-    public function getAll(): array {
-        return $this->db->query(
-            'SELECT d.*, 
-             (SELECT temperature FROM temperature_readings r WHERE r.device_id = d.id ORDER BY r.recorded_at DESC LIMIT 1) AS last_temp,
-             (SELECT recorded_at  FROM temperature_readings r WHERE r.device_id = d.id ORDER BY r.recorded_at DESC LIMIT 1) AS last_reading
-             FROM devices d ORDER BY d.name'
-        )->fetchAll();
+    public function getAll() {
+        $sql = "SELECT d.*, 
+                       (
+                           SELECT r.temperature
+                           FROM temperature_readings r
+                           WHERE r.device_id = d.id
+                           ORDER BY r.recorded_at DESC
+                           LIMIT 1
+                       ) AS last_temp,
+                       (
+                           SELECT r.recorded_at
+                           FROM temperature_readings r
+                           WHERE r.device_id = d.id
+                           ORDER BY r.recorded_at DESC
+                           LIMIT 1
+                       ) AS last_reading
+                FROM {$this->table} d
+                ORDER BY d.name";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
 
     public function findById(int $id): array|false {
         $stmt = $this->db->prepare('SELECT * FROM devices WHERE id = ? LIMIT 1');

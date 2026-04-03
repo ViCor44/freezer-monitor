@@ -1,27 +1,37 @@
 <?php
 
 class Database {
-    private static ?PDO $instance = null;
+    private $host;
+    private $db_name;
+    private $username;
+    private $password;
+    public $conn;
 
-    private function __construct() {}
+    public function __construct() {
+        $this->host = getenv('DB_HOST');
+        $this->db_name = getenv('DB_NAME');
+        $this->username = getenv('DB_USER');
+        $this->password = getenv('DB_PASS');
+        $this->conn = null;
 
-    public static function getConnection(): PDO {
-        if (self::$instance === null) {
-            $host = getenv('DB_HOST') ?: 'localhost';
-            $name = getenv('DB_NAME') ?: 'freezer_monitor';
-            $user = getenv('DB_USER') ?: 'root';
-            $pass = getenv('DB_PASS') ?: '';
-
-            $dsn = "mysql:host={$host};dbname={$name};charset=utf8mb4";
-            $options = [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ];
-
-            self::$instance = new PDO($dsn, $user, $pass, $options);
+        try {
+            $this->conn = new PDO(
+                'mysql:host=' . $this->host . ';dbname=' . $this->db_name,
+                $this->username,
+                $this->password
+            );
+            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        } catch (PDOException $exception) {
+            echo 'Connection error: ' . $exception->getMessage();
         }
+    }
 
-        return self::$instance;
+    public function connect() {
+        return $this->conn;
+    }
+
+    public function getConnection() {  // ← ADICIONE ESTE MÉTODO
+        return $this->conn;
     }
 }
+?>

@@ -3,10 +3,30 @@
 require_once __DIR__ . '/../../config/Database.php';
 
 class User {
-    private PDO $db;
+    private $db;
+    private $table = 'users';
 
-    public function __construct() {
-        $this->db = Database::getConnection();
+    public function __construct($db) {  // ← Recebe a conexão como parâmetro
+        $this->db = $db;
+    }
+
+    public function login($email, $password) {
+        $sql = "SELECT * FROM {$this->table} WHERE email = :email";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+
+        if ($stmt->rowCount() == 0) {
+            return false;
+        }
+
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!password_verify($password, $user['password'])) {
+            return false;
+        }
+
+        return $user;
     }
 
     public function findByEmail(string $email): array|false {
@@ -33,6 +53,21 @@ class User {
         );
         $stmt->execute([$name, $email, $hash, ROLE_USER, 0]);
         return (int) $this->db->lastInsertId();
+    }
+
+    public function register(string $name, string $email, string $password): bool {
+        $name = trim($name);
+        $email = trim(strtolower($email));
+
+        if ($name === '' || $email === '' || $password === '') {
+            return false;
+        }
+
+        if ($this->findByEmail($email) !== false) {
+            return false;
+        }
+
+        return $this->create($name, $email, $password) > 0;
     }
 
     public function approve(int $id): bool {

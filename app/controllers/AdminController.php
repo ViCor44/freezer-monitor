@@ -7,14 +7,21 @@ require_once __DIR__ . '/../../app/models/Alert.php';
 require_once __DIR__ . '/../../app/middleware/Auth.php';
 
 class AdminController {
+    private $db;
     private User $userModel;
     private Device $deviceModel;
     private Alert $alertModel;
 
-    public function __construct() {
-        $this->userModel   = new User();
-        $this->deviceModel = new Device();
-        $this->alertModel  = new Alert();
+    public function __construct($db = null) {
+        if ($db === null) {
+            $database = new Database();
+            $db = $database->connect();
+        }
+
+        $this->db = $db;
+        $this->userModel = new User($db);
+        $this->deviceModel = new Device($db);
+        $this->alertModel = new Alert($db);
     }
 
     // ── Users ──────────────────────────────────────────────────────────────
