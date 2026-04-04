@@ -134,6 +134,10 @@ class WebhookController {
     }
 
     private function checkAlerts(array $device, float $temperature): void {
+        if ($this->alertModel->hasAnyOpenAlert((int) $device['id'])) {
+            return;
+        }
+
         if ($temperature > $device['temp_max']) {
             if (!$this->alertModel->hasOpenAlert($device['id'], ALERT_TEMP_HIGH)) {
                 $this->alertModel->create(

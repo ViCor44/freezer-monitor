@@ -73,8 +73,16 @@ class Alert {
 
     public function countOpen(): int {
         return (int) $this->db->query(
-            "SELECT COUNT(*) FROM alerts WHERE status = 'open'"
+            "SELECT COUNT(DISTINCT device_id) FROM alerts WHERE status = 'open'"
         )->fetchColumn();
+    }
+
+    public function hasAnyOpenAlert(int $deviceId): bool {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM alerts WHERE device_id = ? AND status = 'open'"
+        );
+        $stmt->execute([$deviceId]);
+        return (int) $stmt->fetchColumn() > 0;
     }
 
     public function hasOpenAlert(int $deviceId, string $type): bool {
