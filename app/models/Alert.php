@@ -21,10 +21,20 @@ class Alert {
         $this->db = $db;
     }
 
-    public function getAll() {
-        $sql = "SELECT * FROM {$this->table} ORDER BY created_at DESC";
+    public function getAll(string $status = ''): array {
+        $sql = 'SELECT a.*, d.name AS device_name
+                FROM alerts a
+                INNER JOIN devices d ON d.id = a.device_id';
+
+        $params = [];
+        if ($status !== '') {
+            $sql .= ' WHERE a.status = ?';
+            $params[] = $status;
+        }
+
+        $sql .= ' ORDER BY a.created_at DESC';
         $stmt = $this->db->prepare($sql);
-        $stmt->execute();
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

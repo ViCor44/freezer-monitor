@@ -56,11 +56,11 @@
                 };
                 ?>
                 <tr>
-                    <td><?= htmlspecialchars($a['device_name']) ?></td>
-                    <td><span class="badge bg-<?= $typeColor ?>\"><?= htmlspecialchars($typeLabel) ?></span></td>
+                    <td><?= htmlspecialchars((string)($a['device_name'] ?? ('Dispositivo #' . ((int)($a['device_id'] ?? 0))))) ?></td>
+                    <td><span class="badge bg-<?= $typeColor ?>"><?= htmlspecialchars($typeLabel) ?></span></td>
                     <td><?= htmlspecialchars($a['message']) ?></td>
                     <td><?= $a['temperature'] !== null ? number_format((float)$a['temperature'], 1) . '°C' : '—' ?></td>
-                    <td><span class="badge bg-<?= $statusColor ?>\"><?= htmlspecialchars($statusLabel) ?></span></td>
+                    <td><span class="badge bg-<?= $statusColor ?>"><?= htmlspecialchars($statusLabel) ?></span></td>
                     <td><?= date('Y-m-d H:i', strtotime($a['created_at'])) ?></td>
                     <td class="text-end">
                         <?php if ($a['status'] === ALERT_STATUS_OPEN): ?>
