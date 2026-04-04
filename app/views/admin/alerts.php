@@ -116,6 +116,11 @@
                         </form>
                         <?php endif; ?>
                         <?php if ($group['latest_actionable_id'] !== null && Auth::isAdmin()): ?>
+                        <form method="post" action="<?= BASE_URL ?>/admin/alerts/resolve-all" class="d-inline" onsubmit="return confirm('Resolver todos os alertas nao resolvidos deste dispositivo?');">
+                            <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
+                            <input type="hidden" name="device_id" value="<?= (int) $group['device_id'] ?>">
+                            <button class="btn btn-sm btn-outline-success"><i class="bi bi-check2-circle"></i> Resolver todos</button>
+                        </form>
                         <form method="post" action="<?= BASE_URL ?>/admin/alerts/resolve" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
                             <input type="hidden" name="id" value="<?= (int) $group['latest_actionable_id'] ?>">

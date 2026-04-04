@@ -86,6 +86,7 @@ $routes = [
         '/admin/devices/delete'        => ['AdminController',  'deleteDevice'],
         '/admin/alerts/acknowledge'    => ['AdminController',  'acknowledgeAlert'],
         '/admin/alerts/resolve'        => ['AdminController',  'resolveAlert'],
+        '/admin/alerts/resolve-all'    => ['AdminController',  'resolveAllAlerts'],
         '/webhook/chirpstack'          => ['WebhookController','chirpstack'],
     ],
 ];

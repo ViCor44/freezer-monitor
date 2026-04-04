@@ -152,6 +152,19 @@ class AdminController {
         exit;
     }
 
+    public function resolveAllAlerts(): void {
+        Auth::requireAdmin();
+        $this->verifyCsrf();
+
+        $deviceId = (int) ($_POST['device_id'] ?? 0);
+        if ($deviceId > 0) {
+            $this->alertModel->resolveAllByDevice($deviceId);
+        }
+
+        header('Location: ' . BASE_URL . '/admin/alerts');
+        exit;
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private function verifyCsrf(): void {

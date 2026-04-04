@@ -71,6 +71,16 @@ class Alert {
         return $stmt->execute([ALERT_STATUS_RESOLVED, $id]);
     }
 
+    public function resolveAllByDevice(int $deviceId): int {
+        $stmt = $this->db->prepare(
+            'UPDATE alerts
+             SET status = ?, resolved_at = NOW()
+             WHERE device_id = ? AND status <> ?'
+        );
+        $stmt->execute([ALERT_STATUS_RESOLVED, $deviceId, ALERT_STATUS_RESOLVED]);
+        return $stmt->rowCount();
+    }
+
     public function countOpen(): int {
         return (int) $this->db->query(
             "SELECT COUNT(DISTINCT device_id) FROM alerts WHERE status = 'open'"
