@@ -23,6 +23,10 @@ class DashboardController {
     public function index() {
         Auth::requireApproved();
 
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
         $devices = $this->deviceModel->getAll();
         $deviceCount = $this->deviceModel->count();
         $todayCount = $this->readingModel->countToday();

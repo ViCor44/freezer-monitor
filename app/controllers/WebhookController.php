@@ -34,6 +34,7 @@ class WebhookController {
         }
 
         $raw = file_get_contents('php://input');
+        $this->logIncomingPayload($raw);
         $payload = json_decode($raw, true);
 
         if (!$payload || !isset($payload['deviceInfo']['devEui'])) {
@@ -81,6 +82,35 @@ class WebhookController {
         header('Content-Type: application/json');
         echo json_encode(['status' => 'ok', 'reading_id' => $readingId]);
         exit;
+    }
+
+    private function logIncomingPayload(string $raw): void {
+        $debugEnabled = getenv('WEBHOOK_DEBUG') ?: '';
+        $debugEnabled = trim((string) $debugEnabled, " \t\n\r\0\x0B\"'");
+
+        $isDebugEnabled = in_array(strtolower($debugEnabled), ['1', 'true', 'on', 'yes'], true);
+        if (!$isDebugEnabled) {
+            return;
+        }
+
+        $logDir = ROOT . '/storage/logs';
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0775, true);
+        }
+
+        $logFile = $logDir . '/chirpstack-webhook.log';
+        if (!file_exists($logFile)) {
+            @touch($logFile);
+        }
+
+        $line = sprintf(
+            "[%s] %s%s",
+            date('Y-m-d H:i:s'),
+            trim($raw),
+            PHP_EOL
+        );
+
+        @file_put_contents($logFile, $line, FILE_APPEND);
     }
 
     private function extractTemperature(array $objectData): ?float {
