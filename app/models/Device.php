@@ -72,6 +72,56 @@ class Device {
         return $stmt->fetch();
     }
 
+    public function findByIdWithTelemetry(int $id): array|false {
+        $sql = "SELECT d.*,
+                       (
+                           SELECT r.temperature
+                           FROM temperature_readings r
+                           WHERE r.device_id = d.id
+                           ORDER BY r.recorded_at DESC, r.id DESC
+                           LIMIT 1
+                       ) AS last_temp,
+                       (
+                           SELECT r.recorded_at
+                           FROM temperature_readings r
+                           WHERE r.device_id = d.id
+                           ORDER BY r.recorded_at DESC, r.id DESC
+                           LIMIT 1
+                       ) AS last_reading,
+                       TIMESTAMPDIFF(
+                           SECOND,
+                           (
+                               SELECT r.recorded_at
+                               FROM temperature_readings r
+                               WHERE r.device_id = d.id
+                               ORDER BY r.recorded_at DESC, r.id DESC
+                               LIMIT 1
+                           ),
+                           NOW()
+                       ) AS seconds_since_reading,
+                       TIMESTAMPDIFF(
+                           SECOND,
+                           COALESCE(
+                               d.last_seen_at,
+                               (
+                                   SELECT r.recorded_at
+                                   FROM temperature_readings r
+                                   WHERE r.device_id = d.id
+                                   ORDER BY r.recorded_at DESC, r.id DESC
+                                   LIMIT 1
+                               )
+                           ),
+                           NOW()
+                       ) AS seconds_since_seen
+                FROM {$this->table} d
+                WHERE d.id = ?
+                LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    }
+
     public function findByDevEui(string $devEui): array|false {
         $stmt = $this->db->prepare('SELECT * FROM devices WHERE dev_eui = ? LIMIT 1');
         $stmt->execute([$devEui]);

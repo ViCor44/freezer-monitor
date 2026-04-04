@@ -44,7 +44,7 @@ class DashboardController {
             exit;
         }
 
-        $device = $this->deviceModel->findById($deviceId);
+        $device = $this->deviceModel->findByIdWithTelemetry($deviceId);
         if (!$device) {
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
