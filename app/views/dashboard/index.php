@@ -71,7 +71,7 @@
         >
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <span class="fw-semibold"><i class="bi bi-cpu me-2"></i><?= htmlspecialchars($device['name']) ?></span>
+                    <span class="fw-semibold device-name"><i class="bi bi-cpu me-2"></i><?= htmlspecialchars($device['name']) ?></span>
                     <span class="badge device-online-badge bg-<?= $isOnline ? 'success' : 'secondary' ?>"><?= $isOnline ? 'Online' : 'Offline' ?></span>
                 </div>
                 <div class="d-flex justify-content-between align-items-end">

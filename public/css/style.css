@@ -70,6 +70,11 @@ main.container-fluid {
     transform: translateY(-2px);
 }
 
+.device-name {
+    font-size: 1.2rem;
+    line-height: 1.2;
+}
+
 .device-card-active {
     box-shadow: 0 0 0 2px rgba(13, 110, 253, .35), 0 .5rem 1rem rgba(0, 0, 0, .08) !important;
 }
