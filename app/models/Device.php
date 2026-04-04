@@ -32,7 +32,21 @@ class Device {
                            WHERE r.device_id = d.id
                            ORDER BY r.recorded_at DESC
                            LIMIT 1
-                       ) AS last_reading
+                           ) AS last_reading,
+                       TIMESTAMPDIFF(
+                           SECOND,
+                           COALESCE(
+                               d.last_seen_at,
+                               (
+                                   SELECT r.recorded_at
+                                   FROM temperature_readings r
+                                   WHERE r.device_id = d.id
+                                   ORDER BY r.recorded_at DESC
+                                   LIMIT 1
+                               )
+                           ),
+                           NOW()
+                       ) AS seconds_since_seen
                 FROM {$this->table} d
                 ORDER BY d.name";
         $stmt = $this->db->prepare($sql);

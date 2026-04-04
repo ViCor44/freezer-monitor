@@ -75,6 +75,6 @@ define('TEMP_MIN', DEFAULT_TEMP_MIN);
 define('TEMP_MAX', DEFAULT_TEMP_MAX);
 
 // ── Device Status ───────────────────────────────────────────────────────────
-define('DEVICE_ONLINE_WINDOW_MINUTES', 10);
+define('DEVICE_ONLINE_WINDOW_MINUTES', (int) (getenv('DEVICE_ONLINE_WINDOW_MINUTES') ?: 30));
 
 ?>

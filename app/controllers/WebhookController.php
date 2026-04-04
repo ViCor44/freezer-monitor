@@ -51,26 +51,29 @@ class WebhookController {
             exit;
         }
 
-        // Decode base64 object data
-        $objectData = $payload['object'] ?? [];
+        // Mark the device as online as soon as any uplink is received.
+        $this->deviceModel->updateLastSeen((int) $device['id']);
+
+        // Accept common decoded payload keys produced by ChirpStack codecs.
+        $objectData = $payload['object'] ?? $payload['decodedObject'] ?? [];
         $rxInfo     = $payload['rxInfo'][0] ?? [];
 
-        $temperature = isset($objectData['temperature']) ? (float) $objectData['temperature'] : null;
+        $temperature = $this->extractTemperature($objectData);
         $humidity    = isset($objectData['humidity'])    ? (float) $objectData['humidity']    : null;
         $battery     = isset($objectData['battery'])     ? (float) $objectData['battery']     : null;
         $rssi        = isset($rxInfo['rssi'])             ? (int)   $rxInfo['rssi']            : null;
         $snr         = isset($rxInfo['snr'])              ? (float) $rxInfo['snr']             : null;
 
         if ($temperature === null) {
-            http_response_code(422);
-            echo json_encode(['error' => 'Sem temperatura no payload']);
+            // Keep device online even when payload decoder does not expose temperature.
+            http_response_code(202);
+            echo json_encode(['status' => 'seen_no_temperature']);
             exit;
         }
 
         $readingId = $this->readingModel->create(
             $device['id'], $temperature, $humidity, $battery, $rssi, $snr
         );
-        $this->deviceModel->updateLastSeen($device['id']);
 
         // Auto-generate alerts
         $this->checkAlerts($device, $temperature);
@@ -78,6 +81,26 @@ class WebhookController {
         header('Content-Type: application/json');
         echo json_encode(['status' => 'ok', 'reading_id' => $readingId]);
         exit;
+    }
+
+    private function extractTemperature(array $objectData): ?float {
+        $candidateKeys = ['temperature', 'temp', 'temperatura', 'Temperature'];
+
+        foreach ($candidateKeys as $key) {
+            if (array_key_exists($key, $objectData) && is_numeric($objectData[$key])) {
+                return (float) $objectData[$key];
+            }
+        }
+
+        if (isset($objectData['sensor']) && is_array($objectData['sensor'])) {
+            foreach ($candidateKeys as $key) {
+                if (array_key_exists($key, $objectData['sensor']) && is_numeric($objectData['sensor'][$key])) {
+                    return (float) $objectData['sensor'][$key];
+                }
+            }
+        }
+
+        return null;
     }
 
     private function checkAlerts(array $device, float $temperature): void {

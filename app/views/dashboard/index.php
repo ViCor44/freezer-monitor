@@ -47,8 +47,10 @@
 <?php foreach ($devices as $device): ?>
     <?php
     $lastSeen = $device['last_seen_at'] ?? $device['last_reading'] ?? null;
-    $lastSeenTs = $lastSeen ? strtotime($lastSeen) : false;
-    $isRecentlySeen = $lastSeenTs !== false && (time() - $lastSeenTs) <= (DEVICE_ONLINE_WINDOW_MINUTES * 60);
+    $secondsSinceSeen = isset($device['seconds_since_seen']) ? (int) $device['seconds_since_seen'] : null;
+    $isRecentlySeen = $secondsSinceSeen !== null
+        && $secondsSinceSeen >= 0
+        && $secondsSinceSeen <= (DEVICE_ONLINE_WINDOW_MINUTES * 60);
     $isOnline = !empty($device['active']) && $isRecentlySeen;
     $hasRecentTemperature = $device['last_temp'] !== null && $isRecentlySeen;
     $isTempAlert = $hasRecentTemperature
