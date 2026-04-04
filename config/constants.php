@@ -64,7 +64,7 @@ define('ALERT_HIGH', ALERT_TEMP_HIGH);
 define('ALERT_LOW', ALERT_TEMP_LOW);
 
 // ── ChirpStack ─────────────────────────────────────────────────────────────
-define('CHIRPSTACK_URL', getenv('CHIRPSTACK_URL') ?? 'http://localhost:8080');
+define('CHIRPSTACK_URL', getenv('CHIRPSTACK_URL') ?? 'http://191.188.126.13:8080');
 define('CHIRPSTACK_USER', getenv('CHIRPSTACK_USER') ?? 'admin');
 define('CHIRPSTACK_PASS', getenv('CHIRPSTACK_PASS') ?? 'admin');
 
