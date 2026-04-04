@@ -126,5 +126,50 @@ class DashboardController {
             'temp_min' => isset($device['temp_min']) ? (float) $device['temp_min'] : TEMP_MIN,
         ]);
     }
+
+    public function devicesLiveData(): void {
+        header('Content-Type: application/json');
+        Auth::requireApproved();
+
+        $devices = $this->deviceModel->getAll();
+        $payload = array_map(fn($device) => $this->formatDeviceCardData($device), $devices);
+
+        echo json_encode([
+            'updated_at' => date('c'),
+            'devices' => $payload,
+        ]);
+    }
+
+    private function formatDeviceCardData(array $device): array {
+        $lastSeen = $device['last_seen_at'] ?? $device['last_reading'] ?? null;
+        $secondsSinceSeen = isset($device['seconds_since_seen']) ? (int) $device['seconds_since_seen'] : null;
+        $secondsSinceReading = isset($device['seconds_since_reading']) ? (int) $device['seconds_since_reading'] : null;
+
+        $isRecentlySeen = $secondsSinceSeen !== null
+            && $secondsSinceSeen >= 0
+            && $secondsSinceSeen <= (DEVICE_ONLINE_WINDOW_MINUTES * 60);
+
+        $isOnline = !empty($device['active']) && $isRecentlySeen;
+
+        $hasRecentTemperature = $device['last_temp'] !== null
+            && $secondsSinceReading !== null
+            && $secondsSinceReading >= 0
+            && $secondsSinceReading <= (DEVICE_ONLINE_WINDOW_MINUTES * 60);
+
+        $lastTemp = $device['last_temp'] !== null ? (float) $device['last_temp'] : null;
+        $isTempAlert = $hasRecentTemperature
+            && ($lastTemp > (float) $device['temp_max'] || $lastTemp < (float) $device['temp_min']);
+
+        return [
+            'id' => (int) $device['id'],
+            'is_online' => $isOnline,
+            'temperature' => $hasRecentTemperature ? $lastTemp : null,
+            'temperature_text' => $hasRecentTemperature ? number_format($lastTemp, 1) . '°C' : '--',
+            'range_badge_class' => !$hasRecentTemperature ? 'secondary' : ($isTempAlert ? 'danger' : 'success'),
+            'range_badge_text' => !$hasRecentTemperature ? 'Sem dados recentes' : ($isTempAlert ? 'Fora do intervalo' : 'Dentro do intervalo'),
+            'last_seen' => $lastSeen,
+            'last_seen_text' => $lastSeen ? date('Y-m-d H:i', strtotime($lastSeen)) : 'N/A',
+        ];
+    }
 }
 ?>

@@ -51,9 +51,84 @@ function initDarkMode() {
     }
 }
 
+function initDashboardLiveCards() {
+    const cardsContainer = document.getElementById('deviceCards');
+    if (!cardsContainer) {
+        return;
+    }
+
+    const POLL_MS = 10000;
+
+    function updateBadgeClass(el, className) {
+        if (!el) {
+            return;
+        }
+        el.classList.remove('bg-success', 'bg-secondary', 'bg-danger', 'bg-warning', 'bg-info', 'bg-dark');
+        el.classList.add('bg-' + className);
+    }
+
+    function renderDeviceCard(device) {
+        const cardRoot = cardsContainer.querySelector('[data-device-id="' + device.id + '"]');
+        if (!cardRoot) {
+            return;
+        }
+
+        const onlineBadge = cardRoot.querySelector('.device-online-badge');
+        const tempValue = cardRoot.querySelector('.device-temp-value');
+        const rangeBadge = cardRoot.querySelector('.device-range-badge');
+        const lastSeen = cardRoot.querySelector('.device-last-seen');
+
+        if (onlineBadge) {
+            updateBadgeClass(onlineBadge, device.is_online ? 'success' : 'secondary');
+            onlineBadge.textContent = device.is_online ? 'Online' : 'Offline';
+        }
+
+        if (tempValue) {
+            tempValue.textContent = device.temperature_text || '--';
+        }
+
+        if (rangeBadge) {
+            updateBadgeClass(rangeBadge, device.range_badge_class || 'secondary');
+            rangeBadge.textContent = device.range_badge_text || 'Sem dados recentes';
+        }
+
+        if (lastSeen) {
+            lastSeen.textContent = 'Ultima comunicacao: ' + (device.last_seen_text || 'N/A');
+        }
+    }
+
+    async function refreshCards() {
+        try {
+            const response = await fetch((window.BASE_URL || '') + '/dashboard/devices/live', {
+                headers: {
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = await response.json();
+            if (!payload || !Array.isArray(payload.devices)) {
+                return;
+            }
+
+            payload.devices.forEach(renderDeviceCard);
+        } catch (err) {
+            // Ignore transient network errors during polling.
+        }
+    }
+
+    refreshCards();
+    window.setInterval(refreshCards, POLL_MS);
+}
+
 // Auto-dismiss flash alerts after 4 seconds
 document.addEventListener('DOMContentLoaded', function () {
     initDarkMode();
+    initDashboardLiveCards();
 
     const alerts = document.querySelectorAll('.alert.alert-dismissible');
     alerts.forEach(function (el) {

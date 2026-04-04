@@ -69,6 +69,7 @@ $routes = [
         '/dashboard'           => ['DashboardController', 'index'],
         '/dashboard/device'    => ['DashboardController', 'deviceDetails'],
         '/dashboard/chart'     => ['DashboardController', 'chartData'],
+        '/dashboard/devices/live' => ['DashboardController', 'devicesLiveData'],
         '/admin/users'         => ['AdminController',     'users'],
         '/admin/devices'       => ['AdminController',     'devices'],
         '/admin/alerts'        => ['AdminController',     'alerts'],

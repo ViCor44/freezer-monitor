@@ -48,18 +48,22 @@
     <?php
     $lastSeen = $device['last_seen_at'] ?? $device['last_reading'] ?? null;
     $secondsSinceSeen = isset($device['seconds_since_seen']) ? (int) $device['seconds_since_seen'] : null;
+    $secondsSinceReading = isset($device['seconds_since_reading']) ? (int) $device['seconds_since_reading'] : null;
     $isRecentlySeen = $secondsSinceSeen !== null
         && $secondsSinceSeen >= 0
         && $secondsSinceSeen <= (DEVICE_ONLINE_WINDOW_MINUTES * 60);
     $isOnline = !empty($device['active']) && $isRecentlySeen;
-    $hasRecentTemperature = $device['last_temp'] !== null && $isRecentlySeen;
+    $hasRecentTemperature = $device['last_temp'] !== null
+        && $secondsSinceReading !== null
+        && $secondsSinceReading >= 0
+        && $secondsSinceReading <= (DEVICE_ONLINE_WINDOW_MINUTES * 60);
     $isTempAlert = $hasRecentTemperature
         && ((float) $device['last_temp'] > (float) $device['temp_max']
         || (float) $device['last_temp'] < (float) $device['temp_min']);
     $rangeBadgeClass = !$hasRecentTemperature ? 'secondary' : ($isTempAlert ? 'danger' : 'success');
     $rangeBadgeText = !$hasRecentTemperature ? 'Sem dados recentes' : ($isTempAlert ? 'Fora do intervalo' : 'Dentro do intervalo');
     ?>
-    <div class="col-sm-6 col-lg-4 col-xl-3">
+    <div class="col-sm-6 col-lg-4 col-xl-3" data-device-id="<?= (int) $device['id'] ?>">
         <a
             href="<?= BASE_URL ?>/dashboard/device?id=<?= (int) $device['id'] ?>"
             class="card border-0 shadow-sm w-100 text-start device-selector-card"
@@ -68,20 +72,20 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="fw-semibold"><i class="bi bi-cpu me-2"></i><?= htmlspecialchars($device['name']) ?></span>
-                    <span class="badge bg-<?= $isOnline ? 'success' : 'secondary' ?>"><?= $isOnline ? 'Online' : 'Offline' ?></span>
+                    <span class="badge device-online-badge bg-<?= $isOnline ? 'success' : 'secondary' ?>"><?= $isOnline ? 'Online' : 'Offline' ?></span>
                 </div>
                 <div class="d-flex justify-content-between align-items-end">
                     <div>
                         <div class="text-muted small">Temperatura</div>
-                        <div class="fs-4 fw-bold">
+                        <div class="fs-4 fw-bold device-temp-value">
                             <?= $hasRecentTemperature ? number_format((float) $device['last_temp'], 1) . '°C' : '--' ?>
                         </div>
                     </div>
-                    <span class="badge bg-<?= $rangeBadgeClass ?>">
+                    <span class="badge device-range-badge bg-<?= $rangeBadgeClass ?>">
                         <?= $rangeBadgeText ?>
                     </span>
                 </div>
-                <div class="text-muted small mt-2">
+                <div class="text-muted small mt-2 device-last-seen">
                     Ultima comunicacao: <?= $lastSeen ? htmlspecialchars(date('Y-m-d H:i', strtotime($lastSeen))) : 'N/A' ?>
                 </div>
             </div>
