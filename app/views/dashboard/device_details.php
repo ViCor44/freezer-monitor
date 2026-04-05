@@ -83,6 +83,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const toInput = document.getElementById('chartTo');
     const applyBtn = document.getElementById('applyCustomRange');
     const historyTableBody = document.getElementById('temperatureHistoryTableBody');
+    const historyTableWrap = document.querySelector('.history-table-wrap');
+    const VISIBLE_HISTORY_ROWS = 25;
     let currentPeriod = '24h';
 
     function buildHistoryQuery(period) {
@@ -162,6 +164,26 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         historyTableBody.innerHTML = rows.reverse().join('');
+        adjustHistoryViewport();
+    }
+
+    function adjustHistoryViewport() {
+        if (!historyTableWrap || !historyTableBody) {
+            return;
+        }
+
+        const header = historyTableWrap.querySelector('thead');
+        const firstRow = historyTableBody.querySelector('tr');
+
+        if (!header || !firstRow) {
+            return;
+        }
+
+        const headerHeight = header.getBoundingClientRect().height;
+        const rowHeight = firstRow.getBoundingClientRect().height;
+        const targetHeight = Math.ceil(headerHeight + (rowHeight * VISIBLE_HISTORY_ROWS) + 2);
+
+        historyTableWrap.style.maxHeight = `${targetHeight}px`;
     }
 
     async function refreshChart() {
@@ -198,6 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     refreshChart();
+    window.addEventListener('resize', adjustHistoryViewport);
 });
 </script>
 
