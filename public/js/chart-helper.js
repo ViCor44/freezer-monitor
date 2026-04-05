@@ -126,16 +126,38 @@ async function loadChart(deviceId, period, btn, options = {}) {
                 plugins: {
                     legend: { position: 'top' },
                     tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        titleFont: { size: 12 },
+                        bodyFont: { size: 11 },
+                        borderColor: 'rgba(255,255,255,0.3)',
+                        borderWidth: 1,
+                        displayColors: false,
                         callbacks: {
-                            afterTitle: function(context) {
-                                const dataIndex = context[0].dataIndex;
-                                const note = _notes[canvasId].find(n => {
-                                    const noteDate = new Date(n.noted_at);
-                                    const dataDate = new Date(data.labels[dataIndex]);
-                                    return noteDate.getTime() === dataDate.getTime();
-                                });
-                                if (note) {
-                                    return 'Nota: ' + note.note_text;
+                            label: function(context) {
+                                if (context.datasetIndex === 0) {
+                                    // Dataset de temperatura
+                                    return 'Temperatura: ' + (context.parsed.y || '--') + '°C';
+                                }
+                                return '';
+                            },
+                            afterLabel: function(context) {
+                                // Mostrar nota se existir para este ponto
+                                const dataIndex = context.dataIndex;
+                                if (data.labels && dataIndex < data.labels.length) {
+                                    const note = _notes[canvasId].find(n => {
+                                        const noteDate = new Date(n.noted_at);
+                                        const dataDate = new Date(data.labels[dataIndex]);
+                                        // Comparar com precisão de minuto
+                                        return noteDate.getFullYear() === dataDate.getFullYear() &&
+                                               noteDate.getMonth() === dataDate.getMonth() &&
+                                               noteDate.getDate() === dataDate.getDate() &&
+                                               noteDate.getHours() === dataDate.getHours() &&
+                                               noteDate.getMinutes() === dataDate.getMinutes();
+                                    });
+                                    if (note) {
+                                        return ['', '📝 Nota:', note.note_text];
+                                    }
                                 }
                                 return '';
                             }
