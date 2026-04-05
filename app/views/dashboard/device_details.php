@@ -68,6 +68,38 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
             </div>
             <div class="col-12 col-lg-8">
                 <div class="history-chart-wrap h-100">
+                    <div class="row g-2 mb-3" id="historyStats">
+                        <div class="col-6 col-xl-2">
+                            <div class="border rounded p-2 h-100">
+                                <div class="text-muted small">Min</div>
+                                <div class="fw-semibold" id="statMinTemp">--</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-2">
+                            <div class="border rounded p-2 h-100">
+                                <div class="text-muted small">Max</div>
+                                <div class="fw-semibold" id="statMaxTemp">--</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-2">
+                            <div class="border rounded p-2 h-100">
+                                <div class="text-muted small">Media</div>
+                                <div class="fw-semibold" id="statAvgTemp">--</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-2">
+                            <div class="border rounded p-2 h-100">
+                                <div class="text-muted small">Ultima</div>
+                                <div class="fw-semibold" id="statLastTemp">--</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-4">
+                            <div class="border rounded p-2 h-100">
+                                <div class="text-muted small">Leituras</div>
+                                <div class="fw-semibold" id="statReadingsCount">0</div>
+                            </div>
+                        </div>
+                    </div>
                     <canvas id="selected-device-chart" height="120"></canvas>
                 </div>
             </div>
@@ -84,6 +116,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const applyBtn = document.getElementById('applyCustomRange');
     const historyTableBody = document.getElementById('temperatureHistoryTableBody');
     const historyTableWrap = document.querySelector('.history-table-wrap');
+    const statMinTemp = document.getElementById('statMinTemp');
+    const statMaxTemp = document.getElementById('statMaxTemp');
+    const statAvgTemp = document.getElementById('statAvgTemp');
+    const statLastTemp = document.getElementById('statLastTemp');
+    const statReadingsCount = document.getElementById('statReadingsCount');
     const VISIBLE_HISTORY_ROWS = 25;
     let currentPeriod = '24h';
 
@@ -167,6 +204,65 @@ document.addEventListener('DOMContentLoaded', function () {
         adjustHistoryViewport();
     }
 
+    function formatStatTemperature(value) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+            return '--';
+        }
+
+        return `${parsed.toFixed(1)}°C`;
+    }
+
+    function resetHistoryStats() {
+        if (statMinTemp) statMinTemp.textContent = '--';
+        if (statMaxTemp) statMaxTemp.textContent = '--';
+        if (statAvgTemp) statAvgTemp.textContent = '--';
+        if (statLastTemp) statLastTemp.textContent = '--';
+        if (statReadingsCount) statReadingsCount.textContent = '0';
+    }
+
+    function renderHistoryStats(chartData) {
+        if (!chartData || !Array.isArray(chartData.temperature) || !Array.isArray(chartData.labels)) {
+            resetHistoryStats();
+            return;
+        }
+
+        const temperatures = chartData.temperature;
+        const labels = chartData.labels;
+        const validTemps = temperatures
+            .map(value => Number(value))
+            .filter(value => Number.isFinite(value));
+
+        if (!validTemps.length) {
+            resetHistoryStats();
+            return;
+        }
+
+        const minTemp = Math.min(...validTemps);
+        const maxTemp = Math.max(...validTemps);
+        const avgTemp = validTemps.reduce((acc, value) => acc + value, 0) / validTemps.length;
+
+        let lastTemp = null;
+        let lastLabel = null;
+        for (let i = temperatures.length - 1; i >= 0; i -= 1) {
+            const value = Number(temperatures[i]);
+            if (Number.isFinite(value)) {
+                lastTemp = value;
+                lastLabel = labels[i] || null;
+                break;
+            }
+        }
+
+        if (statMinTemp) statMinTemp.textContent = formatStatTemperature(minTemp);
+        if (statMaxTemp) statMaxTemp.textContent = formatStatTemperature(maxTemp);
+        if (statAvgTemp) statAvgTemp.textContent = formatStatTemperature(avgTemp);
+        if (statLastTemp) {
+            const lastText = formatStatTemperature(lastTemp);
+            statLastTemp.textContent = lastLabel ? `${lastText} (${formatDateForTable(lastLabel)})` : lastText;
+        }
+        if (statReadingsCount) statReadingsCount.textContent = String(validTemps.length);
+    }
+
     function adjustHistoryViewport() {
         if (!historyTableWrap || !historyTableBody) {
             return;
@@ -193,6 +289,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const historyData = await fetchHistoryData(currentPeriod);
         renderHistoryTable(historyData);
+        renderHistoryStats(historyData);
     }
 
     periodButtons.querySelectorAll('button').forEach(button => {
@@ -217,6 +314,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const historyData = await fetchHistoryData('custom');
         renderHistoryTable(historyData);
+        renderHistoryStats(historyData);
     });
 
     refreshChart();
