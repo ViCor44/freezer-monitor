@@ -52,6 +52,12 @@ class DashboardController {
             exit;
         }
 
+        $deviceNotes = $this->noteModel->getByDeviceAndRange(
+            $deviceId,
+            '1970-01-01 00:00:00',
+            '2099-12-31 23:59:59'
+        );
+
         require ROOT . '/app/views/dashboard/device_details.php';
     }
 

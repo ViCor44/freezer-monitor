@@ -107,6 +107,40 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
     </div>
 </div>
 
+<!-- Secção de Notas -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-journal-text me-1"></i>Notas do dispositivo</span>
+        <span class="badge bg-secondary"><?= count($deviceNotes) ?></span>
+    </div>
+    <div class="card-body p-0">
+        <?php if (empty($deviceNotes)): ?>
+            <p class="text-muted text-center py-4 mb-0">Nenhuma nota registada.</p>
+        <?php else: ?>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:160px">Data/Hora</th>
+                        <th>Nota</th>
+                        <th style="width:120px">Criado em</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($deviceNotes as $note): ?>
+                    <tr>
+                        <td class="text-nowrap"><?= htmlspecialchars(date('Y-m-d H:i', strtotime($note['noted_at']))) ?></td>
+                        <td style="white-space:pre-wrap"><?= htmlspecialchars($note['note_text']) ?></td>
+                        <td class="text-muted small text-nowrap"><?= htmlspecialchars(date('Y-m-d H:i', strtotime($note['created_at']))) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const deviceId = <?= (int) $device['id'] ?>;
