@@ -93,7 +93,7 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                                 <div class="fw-semibold" id="statLastTemp">--</div>
                             </div>
                         </div>
-                        <div class="col-6 col-xl-4">
+                        <div class="col-6 col-xl-2">
                             <div class="border rounded p-2 h-100 history-stat-card stat-count">
                                 <div class="text-muted small">Leituras</div>
                                 <div class="fw-semibold" id="statReadingsCount">0</div>
