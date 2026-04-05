@@ -86,6 +86,34 @@ document.addEventListener('DOMContentLoaded', function () {
     const historyTableBody = document.getElementById('temperatureHistoryTableBody');
     let currentPeriod = '24h';
 
+    function buildHistoryQuery(period) {
+        const params = new URLSearchParams();
+        params.set('device_id', String(deviceId));
+
+        if (period === 'custom' && fromInput.value && toInput.value) {
+            params.set('from', fromInput.value);
+            params.set('to', toInput.value);
+        } else {
+            params.set('period', period);
+        }
+
+        return params.toString();
+    }
+
+    async function fetchHistoryData(period) {
+        try {
+            const query = buildHistoryQuery(period);
+            const response = await fetch(`${window.BASE_URL || ''}/dashboard/chart?${query}`);
+            if (!response.ok) {
+                return null;
+            }
+
+            return await response.json();
+        } catch (error) {
+            return null;
+        }
+    }
+
     function formatDateForTable(value) {
         const dt = new Date(value);
         if (Number.isNaN(dt.getTime())) {
@@ -115,9 +143,9 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const labels = Array.isArray(chartData?.labels) ? chartData.labels : [];
-        const temperatures = Array.isArray(chartData?.temperature) ? chartData.temperature : [];
-        const humidity = Array.isArray(chartData?.humidity) ? chartData.humidity : [];
+        const labels = chartData && Array.isArray(chartData.labels) ? chartData.labels : [];
+        const temperatures = chartData && Array.isArray(chartData.temperature) ? chartData.temperature : [];
+        const humidity = chartData && Array.isArray(chartData.humidity) ? chartData.humidity : [];
 
         if (!labels.length) {
             historyTableBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">Sem dados para o periodo selecionado.</td></tr>';
@@ -144,8 +172,10 @@ document.addEventListener('DOMContentLoaded', function () {
     async function refreshChart() {
         await loadChart(deviceId, currentPeriod, null, {
             canvasId: 'selected-device-chart',
-            onData: renderHistoryTable,
         });
+
+        const historyData = await fetchHistoryData(currentPeriod);
+        renderHistoryTable(historyData);
     }
 
     periodButtons.querySelectorAll('button').forEach(button => {
@@ -166,8 +196,10 @@ document.addEventListener('DOMContentLoaded', function () {
             canvasId: 'selected-device-chart',
             from: fromInput.value,
             to: toInput.value,
-            onData: renderHistoryTable,
         });
+
+        const historyData = await fetchHistoryData('custom');
+        renderHistoryTable(historyData);
     });
 
     refreshChart();
