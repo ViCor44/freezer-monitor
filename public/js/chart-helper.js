@@ -10,7 +10,7 @@ const _charts = {};
  * @param {number} deviceId
  * @param {string} period  '24h' | '7d' | '30d'
  * @param {HTMLElement|null} btn  - active button element (optional)
- * @param {{canvasId?: string, from?: string, to?: string}} options
+ * @param {{canvasId?: string, from?: string, to?: string, onData?: function}} options
  */
 async function loadChart(deviceId, period, btn, options = {}) {
     // Update active button in the group
@@ -36,6 +36,10 @@ async function loadChart(deviceId, period, btn, options = {}) {
         const res = await fetch(`${window.BASE_URL || ''}/dashboard/chart?${params.toString()}`);
         if (!res.ok) return;
         const data = await res.json();
+
+        if (typeof options.onData === 'function') {
+            options.onData(data);
+        }
 
         const canvasId = options.canvasId || `chart-${deviceId}`;
         const canvas = document.getElementById(canvasId);
@@ -115,6 +119,8 @@ async function loadChart(deviceId, period, btn, options = {}) {
                 }
             }
         });
+
+        return data;
     } catch (e) {
         console.warn('Erro ao carregar grafico:', e);
     }

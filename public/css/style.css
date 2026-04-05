@@ -84,6 +84,33 @@ main.container-fluid {
     vertical-align: middle;
 }
 
+.history-list {
+    background-color: var(--fm-card-bg);
+    border-color: var(--fm-border) !important;
+}
+
+.history-table-wrap {
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+.history-table-wrap thead th {
+    position: sticky;
+    top: 0;
+    background-color: var(--fm-card-bg);
+    z-index: 1;
+}
+
+.history-chart-wrap {
+    min-height: 320px;
+}
+
+@media (max-width: 991.98px) {
+    .history-table-wrap {
+        max-height: 320px;
+    }
+}
+
 /* ── Auth pages ─────────────────────────────────────────── */
 .min-vh-100 {
     min-height: 100vh !important;

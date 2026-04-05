@@ -46,7 +46,33 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
         </div>
     </div>
     <div class="card-body">
-        <canvas id="selected-device-chart" height="100"></canvas>
+        <div class="row g-3 align-items-stretch">
+            <div class="col-12 col-lg-4">
+                <div class="history-list h-100 border rounded p-2">
+                    <div class="table-responsive history-table-wrap">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Data/Hora</th>
+                                    <th scope="col">Temp. (°C)</th>
+                                    <th scope="col">Hum. (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="temperatureHistoryTableBody">
+                                <tr>
+                                    <td colspan="3" class="text-muted text-center py-3">A carregar historico...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-8">
+                <div class="history-chart-wrap h-100">
+                    <canvas id="selected-device-chart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -57,11 +83,68 @@ document.addEventListener('DOMContentLoaded', function () {
     const fromInput = document.getElementById('chartFrom');
     const toInput = document.getElementById('chartTo');
     const applyBtn = document.getElementById('applyCustomRange');
+    const historyTableBody = document.getElementById('temperatureHistoryTableBody');
     let currentPeriod = '24h';
+
+    function formatDateForTable(value) {
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) {
+            return value;
+        }
+
+        return dt.toLocaleString([], {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    }
+
+    function formatNumber(value) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+            return '--';
+        }
+
+        return parsed.toFixed(1);
+    }
+
+    function renderHistoryTable(chartData) {
+        if (!historyTableBody) {
+            return;
+        }
+
+        const labels = Array.isArray(chartData?.labels) ? chartData.labels : [];
+        const temperatures = Array.isArray(chartData?.temperature) ? chartData.temperature : [];
+        const humidity = Array.isArray(chartData?.humidity) ? chartData.humidity : [];
+
+        if (!labels.length) {
+            historyTableBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">Sem dados para o periodo selecionado.</td></tr>';
+            return;
+        }
+
+        const rows = labels.map((label, index) => {
+            const dateText = formatDateForTable(label);
+            const temperatureText = formatNumber(temperatures[index]);
+            const humidityText = formatNumber(humidity[index]);
+
+            return `
+                <tr>
+                    <td>${dateText}</td>
+                    <td>${temperatureText}</td>
+                    <td>${humidityText}</td>
+                </tr>
+            `;
+        });
+
+        historyTableBody.innerHTML = rows.reverse().join('');
+    }
 
     async function refreshChart() {
         await loadChart(deviceId, currentPeriod, null, {
             canvasId: 'selected-device-chart',
+            onData: renderHistoryTable,
         });
     }
 
@@ -83,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
             canvasId: 'selected-device-chart',
             from: fromInput.value,
             to: toInput.value,
+            onData: renderHistoryTable,
         });
     });
 
