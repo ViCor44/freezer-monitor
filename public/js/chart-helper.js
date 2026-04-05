@@ -5,6 +5,7 @@
 
 const _charts = {};
 const _notes = {}; // Armazenar notas por canvas
+const _rawData = {}; // Armazenar dados brutos (labels e temperatures) por canvas
 
 /**
  * Load chart data for a device and period.
@@ -57,6 +58,12 @@ async function loadChart(deviceId, period, btn, options = {}) {
             notes = await fetchNotes(deviceId, fromDate.toISOString(), toDate.toISOString());
         }
         _notes[canvasId] = notes || [];
+
+        // Armazenar dados brutos para acesso posterior (e.g., ao clicar no gráfico)
+        _rawData[canvasId] = {
+            labels: data.labels,
+            temperatures: data.temperature
+        };
 
         // Format labels
         const labels = data.labels.map(l => {

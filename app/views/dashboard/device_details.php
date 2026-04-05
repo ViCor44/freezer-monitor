@@ -328,6 +328,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let selectedNote = {
         dataIndex: null,
         label: null,
+        fullDate: null,
         temperature: null,
         period: null
     };
@@ -342,23 +343,29 @@ document.addEventListener('DOMContentLoaded', function () {
         const dataIndex = Math.round(dataX);
 
         if (dataIndex >= 0 && dataIndex < chart.data.labels.length) {
-            selectedNote.dataIndex = dataIndex;
-            selectedNote.label = chart.data.labels[dataIndex];
-            selectedNote.temperature = chart.data.datasets[0].data[dataIndex];
-            selectedNote.period = currentPeriod;
-
-            // Atualizar modal com dados
-            const dt = new Date(selectedNote.label);
-            document.getElementById('noteDateTime').textContent = dt.toLocaleString();
-            document.getElementById('noteValue').textContent = selectedNote.temperature ? selectedNote.temperature.toFixed(2) + '°C' : '--';
+            // Usar dados brutos armazenados no chart-helper
+            const rawData = _rawData['selected-device-chart'];
             
-            noteText.value = '';
-            noteModal.show();
+            if (rawData && dataIndex < rawData.labels.length) {
+                selectedNote.dataIndex = dataIndex;
+                selectedNote.label = chart.data.labels[dataIndex]; // Label formatada
+                selectedNote.fullDate = rawData.labels[dataIndex]; // Data completa do servidor
+                selectedNote.temperature = rawData.temperatures[dataIndex];
+                selectedNote.period = currentPeriod;
+
+                // Atualizar modal com dados
+                const dt = new Date(selectedNote.fullDate);
+                document.getElementById('noteDateTime').textContent = dt.toLocaleString();
+                document.getElementById('noteValue').textContent = selectedNote.temperature ? selectedNote.temperature.toFixed(2) + '°C' : '--';
+                
+                noteText.value = '';
+                noteModal.show();
+            }
         }
     });
 
     saveNoteBtn.addEventListener('click', async () => {
-        if (!selectedNote.label || !noteText.value.trim()) {
+        if (!selectedNote.fullDate || !noteText.value.trim()) {
             alert('Por favor, adicione uma nota');
             return;
         }
@@ -371,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: new URLSearchParams({
                     device_id: deviceId,
-                    noted_at: selectedNote.label,
+                    noted_at: selectedNote.fullDate,
                     note_text: noteText.value.trim()
                 })
             });
