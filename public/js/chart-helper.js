@@ -4,6 +4,7 @@
  */
 
 const _charts = {};
+const _notes = {}; // Armazenar notas por canvas
 
 /**
  * Load chart data for a device and period.
@@ -45,6 +46,18 @@ async function loadChart(deviceId, period, btn, options = {}) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
 
+        // Carregar notas para o período
+        let notes = [];
+        const fromDate = options.from ? new Date(options.from) : getDateRange(period).from;
+        const toDate = options.to ? new Date(options.to) : getDateRange(period).to;
+        
+        if (options.from && options.to) {
+            notes = await fetchNotes(deviceId, options.from, options.to);
+        } else {
+            notes = await fetchNotes(deviceId, fromDate.toISOString(), toDate.toISOString());
+        }
+        _notes[canvasId] = notes || [];
+
         // Format labels
         const labels = data.labels.map(l => {
             const d = new Date(l);
@@ -60,6 +73,14 @@ async function loadChart(deviceId, period, btn, options = {}) {
             _charts[canvasId].destroy();
         }
 
+        // Criar dataset para notas
+        const notesData = data.labels.map(label => {
+            const hasNote = _notes[canvasId].some(note => 
+                new Date(note.noted_at).toISOString().split('T')[0] === new Date(label).toISOString().split('T')[0]
+            );
+            return hasNote ? {x: label, y: null} : null;
+        });
+
         _charts[canvasId] = new Chart(canvas, {
             type: 'line',
             data: {
@@ -73,6 +94,16 @@ async function loadChart(deviceId, period, btn, options = {}) {
                         tension: 0.3,
                         fill: true,
                         pointRadius: period === '24h' ? 3 : 2,
+                    },
+                    {
+                        label: 'Notas',
+                        data: notesData,
+                        type: 'scatter',
+                        pointRadius: 6,
+                        pointBackgroundColor: '#ffc107',
+                        pointBorderColor: '#ff9800',
+                        pointBorderWidth: 2,
+                        showLine: false
                     }
                 ]
             },
@@ -81,6 +112,22 @@ async function loadChart(deviceId, period, btn, options = {}) {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            afterTitle: function(context) {
+                                const dataIndex = context[0].dataIndex;
+                                const note = _notes[canvasId].find(n => {
+                                    const noteDate = new Date(n.noted_at);
+                                    const dataDate = new Date(data.labels[dataIndex]);
+                                    return noteDate.getTime() === dataDate.getTime();
+                                });
+                                if (note) {
+                                    return 'Nota: ' + note.note_text;
+                                }
+                                return '';
+                            }
+                        }
+                    },
                     annotation: {
                         annotations: {
                             maxLine: {
@@ -114,4 +161,48 @@ async function loadChart(deviceId, period, btn, options = {}) {
     } catch (e) {
         console.warn('Erro ao carregar grafico:', e);
     }
+}
+
+/**
+ * Buscar notas para um período específico
+ */
+async function fetchNotes(deviceId, from, to) {
+    try {
+        const params = new URLSearchParams();
+        params.set('device_id', String(deviceId));
+        params.set('from', from);
+        params.set('to', to);
+
+        const res = await fetch(`${window.BASE_URL || ''}/dashboard/get-notes?${params.toString()}`);
+        if (!res.ok) return [];
+        
+        const data = await res.json();
+        return data.notes || [];
+    } catch (e) {
+        console.warn('Erro ao carregar notas:', e);
+        return [];
+    }
+}
+
+/**
+ * Obter intervalo de datas baseado no período
+ */
+function getDateRange(period) {
+    const now = new Date();
+    const from = new Date();
+
+    switch (period) {
+        case '7d':
+            from.setDate(now.getDate() - 7);
+            break;
+        case '30d':
+            from.setDate(now.getDate() - 30);
+            break;
+        case '24h':
+        default:
+            from.setHours(now.getHours() - 24);
+            break;
+    }
+
+    return { from, to: now };
 }

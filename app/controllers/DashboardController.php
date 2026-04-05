@@ -5,6 +5,7 @@ class DashboardController {
     private $deviceModel;
     private $readingModel;
     private $alertModel;
+    private $noteModel;
 
     public function __construct($db = null) {
         if ($db === null) {
@@ -18,6 +19,7 @@ class DashboardController {
         $this->deviceModel = new Device($db);
         $this->readingModel = new TemperatureReading($db);
         $this->alertModel = new Alert($db);
+        $this->noteModel = new Note($db);
     }
 
     public function index() {
@@ -127,6 +129,90 @@ class DashboardController {
             'temp_max' => isset($device['temp_max']) ? (float) $device['temp_max'] : TEMP_MAX,
             'temp_min' => isset($device['temp_min']) ? (float) $device['temp_min'] : TEMP_MIN,
         ]);
+    }
+
+    public function saveNote(): void {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            exit;
+        }
+
+        $deviceId = (int) ($_POST['device_id'] ?? 0);
+        $notedAt = $_POST['noted_at'] ?? '';
+        $noteText = $_POST['note_text'] ?? '';
+
+        if ($deviceId <= 0 || empty($notedAt) || empty($noteText)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Dados invalidos']);
+            exit;
+        }
+
+        // Validate device access
+        $device = $this->deviceModel->findById($deviceId);
+        if (!$device) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Dispositivo nao encontrado']);
+            exit;
+        }
+
+        try {
+            $noteId = $this->noteModel->create(
+                $deviceId,
+                $notedAt,
+                $noteText,
+                (int) $_SESSION['user_id']
+            );
+
+            http_response_code(201);
+            echo json_encode([
+                'success' => true,
+                'note_id' => $noteId,
+                'message' => 'Nota guardada com sucesso'
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Erro ao guardar nota']);
+        }
+    }
+
+    public function getNotes(): void {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            exit;
+        }
+
+        $deviceId = (int) ($_GET['device_id'] ?? 0);
+        $from = $_GET['from'] ?? '';
+        $to = $_GET['to'] ?? '';
+
+        if ($deviceId <= 0 || empty($from) || empty($to)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Dados invalidos']);
+            exit;
+        }
+
+        // Validate device access
+        $device = $this->deviceModel->findById($deviceId);
+        if (!$device) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Dispositivo nao encontrado']);
+            exit;
+        }
+
+        try {
+            $notes = $this->noteModel->getByDeviceAndRange($deviceId, $from, $to);
+            echo json_encode([
+                'success' => true,
+                'notes' => $notes
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Erro ao recuperar notas']);
+        }
     }
 
     public function devicesLiveData(): void {

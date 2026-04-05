@@ -319,7 +319,121 @@ document.addEventListener('DOMContentLoaded', function () {
 
     refreshChart();
     window.addEventListener('resize', adjustHistoryViewport);
+
+    // Modal para notas no gráfico
+    const noteModal = new bootstrap.Modal(document.getElementById('noteModal'));
+    const noteText = document.getElementById('noteText');
+    const saveNoteBtn = document.getElementById('saveNoteBtn');
+    const selectedChart = document.getElementById('selected-device-chart');
+    let selectedNote = {
+        dataIndex: null,
+        label: null,
+        temperature: null,
+        period: null
+    };
+
+    // Detectar cliques no gráfico
+    selectedChart.addEventListener('click', async (event) => {
+        const chart = _charts['selected-device-chart'];
+        if (!chart) return;
+
+        const canvasPosition = Chart.helpers.getRelativePosition(event, chart);
+        const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
+        const dataIndex = Math.round(dataX);
+
+        if (dataIndex >= 0 && dataIndex < chart.data.labels.length) {
+            selectedNote.dataIndex = dataIndex;
+            selectedNote.label = chart.data.labels[dataIndex];
+            selectedNote.temperature = chart.data.datasets[0].data[dataIndex];
+            selectedNote.period = currentPeriod;
+
+            // Atualizar modal com dados
+            const dt = new Date(selectedNote.label);
+            document.getElementById('noteDateTime').textContent = dt.toLocaleString();
+            document.getElementById('noteValue').textContent = selectedNote.temperature ? selectedNote.temperature.toFixed(2) + '°C' : '--';
+            
+            noteText.value = '';
+            noteModal.show();
+        }
+    });
+
+    saveNoteBtn.addEventListener('click', async () => {
+        if (!selectedNote.label || !noteText.value.trim()) {
+            alert('Por favor, adicione uma nota');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${window.BASE_URL || ''}/dashboard/save-note`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    device_id: deviceId,
+                    noted_at: selectedNote.label,
+                    note_text: noteText.value.trim()
+                })
+            });
+
+            if (!response.ok) {
+                alert('Erro ao guardar nota');
+                return;
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                noteModal.hide();
+                
+                // Recarregar gráfico para mostrar notas
+                await refreshChart();
+                
+                // Mostrar mensagem de sucesso
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                alertDiv.innerHTML = `Nota guardada com sucesso<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                document.querySelector('.card.shadow-sm').insertAdjacentElement('beforebegin', alertDiv);
+                
+                setTimeout(() => alertDiv.remove(), 4000);
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            alert('Erro ao guardar nota');
+        }
+    });
 });
 </script>
+
+<!-- Modal para adicionar nota -->
+<div class="modal fade" id="noteModal" tabindex="-1" aria-labelledby="noteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="noteModalLabel">Adicionar nota ao gráfico</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <strong>Data/Hora:</strong> <span id="noteDateTime">--</span>
+                    </small>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <strong>Valor:</strong> <span id="noteValue">--</span>
+                    </small>
+                </div>
+                <div class="mb-3">
+                    <label for="noteText" class="form-label">Nota</label>
+                    <textarea class="form-control" id="noteText" rows="4" placeholder="Adicione uma nota..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveNoteBtn">Guardar Nota</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>
