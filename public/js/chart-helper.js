@@ -80,12 +80,16 @@ async function loadChart(deviceId, period, btn, options = {}) {
             _charts[canvasId].destroy();
         }
 
-        // Criar dataset para notas
-        const notesData = data.labels.map(label => {
-            const hasNote = _notes[canvasId].some(note => 
-                new Date(note.noted_at).toISOString().split('T')[0] === new Date(label).toISOString().split('T')[0]
-            );
-            return hasNote ? {x: label, y: null} : null;
+        // Criar dataset para notas - encontrar índices das notas nos dados
+        const notesData = data.labels.map((label, index) => {
+            const hasNote = _notes[canvasId].some(note => {
+                const noteDate = new Date(note.noted_at);
+                const dataDate = new Date(label);
+                // Comparar até à hora e minuto
+                return noteDate.getTime() === dataDate.getTime();
+            });
+            // Retornar o valor de temperatura se houver nota, senão null
+            return hasNote ? data.temperature[index] : null;
         });
 
         _charts[canvasId] = new Chart(canvas, {
@@ -105,12 +109,14 @@ async function loadChart(deviceId, period, btn, options = {}) {
                     {
                         label: 'Notas',
                         data: notesData,
-                        type: 'scatter',
+                        borderColor: 'transparent',
+                        backgroundColor: 'transparent',
                         pointRadius: 6,
                         pointBackgroundColor: '#ffc107',
                         pointBorderColor: '#ff9800',
                         pointBorderWidth: 2,
-                        showLine: false
+                        showLine: false,
+                        borderWidth: 0
                     }
                 ]
             },
