@@ -70,31 +70,31 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                 <div class="history-chart-wrap h-100">
                     <div class="row g-2 mb-3" id="historyStats">
                         <div class="col-6 col-xl-2">
-                            <div class="border rounded p-2 h-100">
+                            <div class="border rounded p-2 h-100 history-stat-card stat-min">
                                 <div class="text-muted small">Min</div>
                                 <div class="fw-semibold" id="statMinTemp">--</div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-2">
-                            <div class="border rounded p-2 h-100">
+                            <div class="border rounded p-2 h-100 history-stat-card stat-max">
                                 <div class="text-muted small">Max</div>
                                 <div class="fw-semibold" id="statMaxTemp">--</div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-2">
-                            <div class="border rounded p-2 h-100">
+                            <div class="border rounded p-2 h-100 history-stat-card stat-avg">
                                 <div class="text-muted small">Media</div>
                                 <div class="fw-semibold" id="statAvgTemp">--</div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-2">
-                            <div class="border rounded p-2 h-100">
+                            <div class="border rounded p-2 h-100 history-stat-card stat-last">
                                 <div class="text-muted small">Ultima</div>
                                 <div class="fw-semibold" id="statLastTemp">--</div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-4">
-                            <div class="border rounded p-2 h-100">
+                            <div class="border rounded p-2 h-100 history-stat-card stat-count">
                                 <div class="text-muted small">Leituras</div>
                                 <div class="fw-semibold" id="statReadingsCount">0</div>
                             </div>
