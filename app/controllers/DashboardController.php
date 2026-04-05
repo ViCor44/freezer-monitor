@@ -99,7 +99,6 @@ class DashboardController {
             echo json_encode([
                 'labels' => $labels,
                 'temperature' => array_map(static fn($row) => $row['temperature'] !== null ? (float) $row['temperature'] : null, $rows),
-                'humidity' => array_map(static fn($row) => $row['humidity'] !== null ? (float) $row['humidity'] : null, $rows),
                 'temp_max' => isset($device['temp_max']) ? (float) $device['temp_max'] : TEMP_MAX,
                 'temp_min' => isset($device['temp_min']) ? (float) $device['temp_min'] : TEMP_MIN,
             ]);
@@ -125,7 +124,6 @@ class DashboardController {
         echo json_encode([
             'labels' => $labels,
             'temperature' => array_map(static fn($row) => $row['temperature'] !== null ? (float) $row['temperature'] : null, $rows),
-            'humidity' => array_map(static fn($row) => $row['humidity'] !== null ? (float) $row['humidity'] : null, $rows),
             'temp_max' => isset($device['temp_max']) ? (float) $device['temp_max'] : TEMP_MAX,
             'temp_min' => isset($device['temp_min']) ? (float) $device['temp_min'] : TEMP_MIN,
         ]);

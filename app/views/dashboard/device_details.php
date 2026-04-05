@@ -55,12 +55,11 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                                 <tr>
                                     <th scope="col">Data/Hora</th>
                                     <th scope="col">Temp. (°C)</th>
-                                    <th scope="col">Hum. (%)</th>
                                 </tr>
                             </thead>
                             <tbody id="temperatureHistoryTableBody">
                                 <tr>
-                                    <td colspan="3" class="text-muted text-center py-3">A carregar historico...</td>
+                                    <td colspan="2" class="text-muted text-center py-3">A carregar historico...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -145,23 +144,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const labels = chartData && Array.isArray(chartData.labels) ? chartData.labels : [];
         const temperatures = chartData && Array.isArray(chartData.temperature) ? chartData.temperature : [];
-        const humidity = chartData && Array.isArray(chartData.humidity) ? chartData.humidity : [];
-
         if (!labels.length) {
-            historyTableBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">Sem dados para o periodo selecionado.</td></tr>';
+            historyTableBody.innerHTML = '<tr><td colspan="2" class="text-muted text-center py-3">Sem dados para o periodo selecionado.</td></tr>';
             return;
         }
 
         const rows = labels.map((label, index) => {
             const dateText = formatDateForTable(label);
             const temperatureText = formatNumber(temperatures[index]);
-            const humidityText = formatNumber(humidity[index]);
 
             return `
                 <tr>
                     <td>${dateText}</td>
                     <td>${temperatureText}</td>
-                    <td>${humidityText}</td>
                 </tr>
             `;
         });

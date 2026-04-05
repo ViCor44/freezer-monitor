@@ -73,16 +73,6 @@ async function loadChart(deviceId, period, btn, options = {}) {
                         tension: 0.3,
                         fill: true,
                         pointRadius: period === '24h' ? 3 : 2,
-                    },
-                    {
-                        label: 'Humidade (%)',
-                        data: data.humidity,
-                        borderColor: '#20c997',
-                        backgroundColor: 'rgba(32,201,151,0.08)',
-                        tension: 0.3,
-                        fill: false,
-                        hidden: true,
-                        pointRadius: 3,
                     }
                 ]
             },
