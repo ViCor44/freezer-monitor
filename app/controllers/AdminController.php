@@ -11,6 +11,7 @@ class AdminController {
     private User $userModel;
     private Device $deviceModel;
     private Alert $alertModel;
+    private Note $noteModel;
 
     public function __construct($db = null) {
         if ($db === null) {
@@ -22,6 +23,7 @@ class AdminController {
         $this->userModel = new User($db);
         $this->deviceModel = new Device($db);
         $this->alertModel = new Alert($db);
+        $this->noteModel = new Note($db);
     }
 
     // ── Users ──────────────────────────────────────────────────────────────
@@ -145,8 +147,18 @@ class AdminController {
         Auth::requireAdmin();
         $this->verifyCsrf();
         $id = (int) ($_POST['id'] ?? 0);
+        $noteText = trim($_POST['note_text'] ?? '');
         if ($id) {
+            $alert = $this->alertModel->findById($id);
             $this->alertModel->resolve($id);
+            if ($noteText !== '' && $alert) {
+                $this->noteModel->create(
+                    (int) $alert['device_id'],
+                    date('Y-m-d H:i:s'),
+                    $noteText,
+                    Auth::userId()
+                );
+            }
         }
         header('Location: ' . BASE_URL . '/admin/alerts');
         exit;
@@ -155,12 +167,19 @@ class AdminController {
     public function resolveAllAlerts(): void {
         Auth::requireAdmin();
         $this->verifyCsrf();
-
         $deviceId = (int) ($_POST['device_id'] ?? 0);
+        $noteText = trim($_POST['note_text'] ?? '');
         if ($deviceId > 0) {
             $this->alertModel->resolveAllByDevice($deviceId);
+            if ($noteText !== '') {
+                $this->noteModel->create(
+                    $deviceId,
+                    date('Y-m-d H:i:s'),
+                    $noteText,
+                    Auth::userId()
+                );
+            }
         }
-
         header('Location: ' . BASE_URL . '/admin/alerts');
         exit;
     }

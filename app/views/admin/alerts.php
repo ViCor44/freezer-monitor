@@ -116,16 +116,22 @@
                         </form>
                         <?php endif; ?>
                         <?php if ($group['latest_actionable_id'] !== null && Auth::isAdmin()): ?>
-                        <form method="post" action="<?= BASE_URL ?>/admin/alerts/resolve-all" class="d-inline" onsubmit="return confirm('Resolver todos os alertas nao resolvidos deste dispositivo?');">
-                            <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
-                            <input type="hidden" name="device_id" value="<?= (int) $group['device_id'] ?>">
-                            <button class="btn btn-sm btn-outline-success"><i class="bi bi-check2-circle"></i> Resolver todos</button>
-                        </form>
-                        <form method="post" action="<?= BASE_URL ?>/admin/alerts/resolve" class="d-inline">
-                            <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
-                            <input type="hidden" name="id" value="<?= (int) $group['latest_actionable_id'] ?>">
-                            <button class="btn btn-sm btn-success"><i class="bi bi-check2-all"></i> Resolver</button>
-                        </form>
+                        <button type="button" class="btn btn-sm btn-outline-success"
+                            data-bs-toggle="modal" data-bs-target="#resolveModal"
+                            data-action="resolve-all"
+                            data-device-id="<?= (int) $group['device_id'] ?>"
+                            data-device-name="<?= htmlspecialchars((string)($a['device_name'] ?? '')) ?>"
+                            data-csrf="<?= Auth::csrfToken() ?>">
+                            <i class="bi bi-check2-circle"></i> Resolver todos
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success"
+                            data-bs-toggle="modal" data-bs-target="#resolveModal"
+                            data-action="resolve"
+                            data-alert-id="<?= (int) $group['latest_actionable_id'] ?>"
+                            data-device-name="<?= htmlspecialchars((string)($a['device_name'] ?? '')) ?>"
+                            data-csrf="<?= Auth::csrfToken() ?>">
+                            <i class="bi bi-check2-all"></i> Resolver
+                        </button>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -137,5 +143,59 @@
         </table>
     </div>
 </div>
+
+<!-- Modal Resolver Alerta -->
+<div class="modal fade" id="resolveModal" tabindex="-1" aria-labelledby="resolveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resolveModalLabel">Resolver alerta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="resolveForm" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" id="resolveCsrf">
+                    <input type="hidden" name="id" id="resolveAlertId">
+                    <input type="hidden" name="device_id" id="resolveDeviceId">
+                    <p class="text-muted mb-3">Dispositivo: <strong id="resolveDeviceName"></strong></p>
+                    <div class="mb-3">
+                        <label for="resolveNoteText" class="form-label">Nota <span class="text-muted">(opcional)</span></label>
+                        <textarea class="form-control" id="resolveNoteText" name="note_text" rows="3"
+                            placeholder="Ex: Porta estava aberta, temperatura normalizada..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-check2-all me-1"></i>Confirmar resolucao</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('resolveModal').addEventListener('show.bs.modal', function (event) {
+    const btn = event.relatedTarget;
+    const action = btn.dataset.action;
+    const form = document.getElementById('resolveForm');
+    const csrf = btn.dataset.csrf;
+
+    document.getElementById('resolveCsrf').value = csrf;
+    document.getElementById('resolveDeviceName').textContent = btn.dataset.deviceName || '';
+    document.getElementById('resolveNoteText').value = '';
+    document.getElementById('resolveAlertId').value = '';
+    document.getElementById('resolveDeviceId').value = '';
+
+    if (action === 'resolve-all') {
+        form.action = '<?= BASE_URL ?>/admin/alerts/resolve-all';
+        document.getElementById('resolveDeviceId').value = btn.dataset.deviceId;
+        document.getElementById('resolveModalLabel').textContent = 'Resolver todos os alertas';
+    } else {
+        form.action = '<?= BASE_URL ?>/admin/alerts/resolve';
+        document.getElementById('resolveAlertId').value = btn.dataset.alertId;
+        document.getElementById('resolveModalLabel').textContent = 'Resolver alerta';
+    }
+});
+</script>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>
