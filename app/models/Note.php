@@ -24,13 +24,21 @@ class Note {
     }
 
     /**
-     * Create a new note
+     * Create a new note.
+     * Pass null for $notedAt to use MySQL's NOW() (consistent with created_at timezone).
      */
-    public function create(int $deviceId, string $notedAt, string $noteText, int $createdBy, ?int $readingId = null): int {
-        $sql = "INSERT INTO {$this->table} (device_id, reading_id, noted_at, note_text, created_by, created_at) 
-                VALUES (?, ?, ?, ?, ?, NOW())";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([$deviceId, $readingId, $notedAt, $noteText, $createdBy]);
+    public function create(int $deviceId, ?string $notedAt, string $noteText, int $createdBy, ?int $readingId = null): int {
+        if ($notedAt === null) {
+            $sql = "INSERT INTO {$this->table} (device_id, reading_id, noted_at, note_text, created_by, created_at)
+                    VALUES (?, ?, NOW(), ?, ?, NOW())";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$deviceId, $readingId, $noteText, $createdBy]);
+        } else {
+            $sql = "INSERT INTO {$this->table} (device_id, reading_id, noted_at, note_text, created_by, created_at)
+                    VALUES (?, ?, ?, ?, ?, NOW())";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$deviceId, $readingId, $notedAt, $noteText, $createdBy]);
+        }
         return (int) $this->db->lastInsertId();
     }
 

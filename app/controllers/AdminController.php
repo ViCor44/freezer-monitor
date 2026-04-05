@@ -154,7 +154,7 @@ class AdminController {
             if ($noteText !== '' && $alert) {
                 $this->noteModel->create(
                     (int) $alert['device_id'],
-                    date('Y-m-d H:i:s'),
+                    null, // usar NOW() do MySQL para consistência de timezone
                     $noteText,
                     Auth::userId()
                 );
@@ -174,7 +174,7 @@ class AdminController {
             if ($noteText !== '') {
                 $this->noteModel->create(
                     $deviceId,
-                    date('Y-m-d H:i:s'),
+                    null, // usar NOW() do MySQL para consistência de timezone
                     $noteText,
                     Auth::userId()
                 );

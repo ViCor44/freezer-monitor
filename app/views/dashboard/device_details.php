@@ -108,9 +108,9 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                             <span class="fw-semibold small"><i class="bi bi-journal-text me-1"></i>Notas</span>
                             <span class="badge bg-secondary"><?= count($deviceNotes) ?></span>
                         </div>
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="max-height: <?= count($deviceNotes) > 7 ? '210px' : 'none' ?>; overflow-y: <?= count($deviceNotes) > 7 ? 'auto' : 'visible' ?>;">
                             <table class="table table-sm table-hover mb-0">
-                                <thead class="table-light">
+                                <thead class="table-light sticky-top">
                                     <tr>
                                         <th style="width:145px">Data/Hora</th>
                                         <th>Nota</th>
