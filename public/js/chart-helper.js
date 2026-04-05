@@ -136,19 +136,18 @@ async function loadChart(deviceId, period, btn, options = {}) {
                         callbacks: {
                             label: function(context) {
                                 if (context.datasetIndex === 0) {
-                                    // Dataset de temperatura
                                     return 'Temperatura: ' + (context.parsed.y || '--') + '°C';
                                 }
-                                return '';
+                                return null;
                             },
                             afterLabel: function(context) {
-                                // Mostrar nota se existir para este ponto
+                                // Só mostrar nota uma vez, no dataset de temperatura
+                                if (context.datasetIndex !== 0) return null;
                                 const dataIndex = context.dataIndex;
                                 if (data.labels && dataIndex < data.labels.length) {
                                     const note = _notes[canvasId].find(n => {
                                         const noteDate = new Date(n.noted_at);
                                         const dataDate = new Date(data.labels[dataIndex]);
-                                        // Comparar com precisão de minuto
                                         return noteDate.getFullYear() === dataDate.getFullYear() &&
                                                noteDate.getMonth() === dataDate.getMonth() &&
                                                noteDate.getDate() === dataDate.getDate() &&
@@ -156,10 +155,10 @@ async function loadChart(deviceId, period, btn, options = {}) {
                                                noteDate.getMinutes() === dataDate.getMinutes();
                                     });
                                     if (note) {
-                                        return ['', '📝 Nota:', note.note_text];
+                                        return ['', '📝 ' + note.note_text];
                                     }
                                 }
-                                return '';
+                                return null;
                             }
                         }
                     },

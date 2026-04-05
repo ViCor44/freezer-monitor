@@ -325,6 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const noteText = document.getElementById('noteText');
     const saveNoteBtn = document.getElementById('saveNoteBtn');
     const selectedChart = document.getElementById('selected-device-chart');
+    const viewNoteModal = new bootstrap.Modal(document.getElementById('viewNoteModal'));
     let selectedNote = {
         dataIndex: null,
         label: null,
@@ -332,6 +333,22 @@ document.addEventListener('DOMContentLoaded', function () {
         temperature: null,
         period: null
     };
+
+    function findNoteForIndex(dataIndex) {
+        const rawData = _rawData['selected-device-chart'];
+        if (!rawData || dataIndex >= rawData.labels.length) return null;
+        const fullDate = rawData.labels[dataIndex];
+        const notes = _notes['selected-device-chart'] || [];
+        return notes.find(n => {
+            const noteDate = new Date(n.noted_at);
+            const dataDate = new Date(fullDate);
+            return noteDate.getFullYear() === dataDate.getFullYear() &&
+                   noteDate.getMonth() === dataDate.getMonth() &&
+                   noteDate.getDate() === dataDate.getDate() &&
+                   noteDate.getHours() === dataDate.getHours() &&
+                   noteDate.getMinutes() === dataDate.getMinutes();
+        }) || null;
+    }
 
     // Detectar cliques no gráfico
     selectedChart.addEventListener('click', async (event) => {
@@ -343,21 +360,30 @@ document.addEventListener('DOMContentLoaded', function () {
         const dataIndex = Math.round(dataX);
 
         if (dataIndex >= 0 && dataIndex < chart.data.labels.length) {
-            // Usar dados brutos armazenados no chart-helper
             const rawData = _rawData['selected-device-chart'];
-            
-            if (rawData && dataIndex < rawData.labels.length) {
+            if (!rawData || dataIndex >= rawData.labels.length) return;
+
+            const fullDate = rawData.labels[dataIndex];
+            const temperature = rawData.temperatures[dataIndex];
+            const dt = new Date(fullDate);
+            const existingNote = findNoteForIndex(dataIndex);
+
+            if (existingNote) {
+                // Mostrar modal de leitura
+                document.getElementById('viewNoteDateTime').textContent = dt.toLocaleString();
+                document.getElementById('viewNoteValue').textContent = temperature ? temperature.toFixed(2) + '°C' : '--';
+                document.getElementById('viewNoteContent').textContent = existingNote.note_text;
+                viewNoteModal.show();
+            } else {
+                // Mostrar modal de criação
                 selectedNote.dataIndex = dataIndex;
-                selectedNote.label = chart.data.labels[dataIndex]; // Label formatada
-                selectedNote.fullDate = rawData.labels[dataIndex]; // Data completa do servidor
-                selectedNote.temperature = rawData.temperatures[dataIndex];
+                selectedNote.label = chart.data.labels[dataIndex];
+                selectedNote.fullDate = fullDate;
+                selectedNote.temperature = temperature;
                 selectedNote.period = currentPeriod;
 
-                // Atualizar modal com dados
-                const dt = new Date(selectedNote.fullDate);
                 document.getElementById('noteDateTime').textContent = dt.toLocaleString();
-                document.getElementById('noteValue').textContent = selectedNote.temperature ? selectedNote.temperature.toFixed(2) + '°C' : '--';
-                
+                document.getElementById('noteValue').textContent = temperature ? temperature.toFixed(2) + '°C' : '--';
                 noteText.value = '';
                 noteModal.show();
             }
@@ -420,15 +446,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <small class="text-muted">
-                        <strong>Data/Hora:</strong> <span id="noteDateTime">--</span>
-                    </small>
+                <div class="mb-2">
+                    <small class="text-muted"><strong>Data/Hora:</strong> <span id="noteDateTime">--</span></small>
                 </div>
                 <div class="mb-3">
-                    <small class="text-muted">
-                        <strong>Valor:</strong> <span id="noteValue">--</span>
-                    </small>
+                    <small class="text-muted"><strong>Valor:</strong> <span id="noteValue">--</span></small>
                 </div>
                 <div class="mb-3">
                     <label for="noteText" class="form-label">Nota</label>
@@ -438,6 +460,32 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" id="saveNoteBtn">Guardar Nota</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ler nota existente -->
+<div class="modal fade" id="viewNoteModal" tabindex="-1" aria-labelledby="viewNoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewNoteModalLabel">📝 Nota</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <small class="text-muted"><strong>Data/Hora:</strong> <span id="viewNoteDateTime">--</span></small>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted"><strong>Valor:</strong> <span id="viewNoteValue">--</span></small>
+                </div>
+                <div class="border rounded p-3 bg-light">
+                    <p class="mb-0" id="viewNoteContent" style="white-space: pre-wrap;"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
     </div>
