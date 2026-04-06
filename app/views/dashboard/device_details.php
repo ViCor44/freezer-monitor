@@ -42,6 +42,9 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                 <button type="button" class="btn btn-sm btn-primary" id="applyCustomRange" title="Pesquisar intervalo personalizado">
                     <i class="bi bi-search"></i>
                 </button>
+                <button type="button" class="btn btn-sm btn-secondary" id="clearCustomRange" title="Limpar pesquisa">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -344,6 +347,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const historyData = await fetchHistoryData('custom');
         renderHistoryTable(historyData);
         renderHistoryStats(historyData);
+    });
+
+    const clearBtn = document.getElementById('clearCustomRange');
+    clearBtn.addEventListener('click', async function () {
+        fromInput.value = '';
+        toInput.value = '';
+        currentPeriod = '24h';
+        periodButtons.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        periodButtons.querySelector('button[data-period="24h"]').classList.add('active');
+        await refreshChart();
     });
 
     refreshChart();
