@@ -32,6 +32,16 @@ require $root . '/app/controllers/WebhookController.php';
 
 // Session
 if (session_status() === PHP_SESSION_NONE) {
+    // Evita falhas intermitentes de permissao em C:\xampp\tmp apos periodos sem atividade.
+    $sessionDir = $root . '/storage/sessions';
+    if (!is_dir($sessionDir)) {
+        @mkdir($sessionDir, 0775, true);
+    }
+
+    if (is_dir($sessionDir) && is_writable($sessionDir)) {
+        session_save_path($sessionDir);
+    }
+
     session_start();
 }
 
