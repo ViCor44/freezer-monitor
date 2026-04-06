@@ -59,26 +59,8 @@ async function loadChart(deviceId, period, btn, options = {}) {
         }
         _notes[canvasId] = notes || [];
 
-        // Fill missing dates for 7d/30d periods so the x-axis spans the full range
-        let workingLabels = data.labels;
-        let workingTemperatures = data.temperature;
-
-        if ((period === '7d' || period === '30d') && !options.from && !options.to) {
-            const days = period === '7d' ? 7 : 30;
-            const allDates = [];
-            for (let i = days; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                const y = d.getFullYear();
-                const mo = String(d.getMonth() + 1).padStart(2, '0');
-                const dy = String(d.getDate()).padStart(2, '0');
-                allDates.push(`${y}-${mo}-${dy}`);
-            }
-            const dataMap = {};
-            data.labels.forEach((label, i) => { dataMap[label] = data.temperature[i]; });
-            workingLabels = allDates;
-            workingTemperatures = allDates.map(d => Object.prototype.hasOwnProperty.call(dataMap, d) ? dataMap[d] : null);
-        }
+        const workingLabels = data.labels;
+        const workingTemperatures = data.temperature;
 
         // Armazenar dados brutos para acesso posterior (e.g., ao clicar no gráfico)
         _rawData[canvasId] = {
