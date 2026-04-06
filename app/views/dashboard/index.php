@@ -5,7 +5,8 @@
 
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">
-        <div class="card border-0 shadow-sm">
+        <a href="<?= BASE_URL ?>/admin/devices" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex align-items-center gap-3">
                 <div class="icon-box bg-primary text-white rounded p-3"><i class="bi bi-cpu fs-4"></i></div>
                 <div>
@@ -14,6 +15,7 @@
                 </div>
             </div>
         </div>
+        </a>
     </div>
     <div class="col-sm-6 col-xl-3">
         <div class="card border-0 shadow-sm">
@@ -27,7 +29,8 @@
         </div>
     </div>
     <div class="col-sm-6 col-xl-3">
-        <div class="card border-0 shadow-sm">
+        <a href="<?= BASE_URL ?>/admin/alerts" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex align-items-center gap-3">
                 <div class="icon-box bg-danger text-white rounded p-3"><i class="bi bi-bell fs-4"></i></div>
                 <div>
@@ -36,6 +39,7 @@
                 </div>
             </div>
         </div>
+        </a>
     </div>
 </div>
 
