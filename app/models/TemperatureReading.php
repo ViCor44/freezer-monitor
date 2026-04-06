@@ -37,12 +37,10 @@ class TemperatureReading {
 
     public function getLast7Days(int $deviceId): array {
         $stmt = $this->db->prepare(
-            'SELECT AVG(temperature) AS temperature, AVG(humidity) AS humidity,
-                    DATE(recorded_at) AS recorded_date
+            'SELECT temperature, humidity, recorded_at
              FROM temperature_readings
              WHERE device_id = ? AND recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-             GROUP BY DATE(recorded_at)
-             ORDER BY recorded_date ASC'
+             ORDER BY recorded_at ASC'
         );
         $stmt->execute([$deviceId]);
         return $stmt->fetchAll();
@@ -50,12 +48,10 @@ class TemperatureReading {
 
     public function getLast30Days(int $deviceId): array {
         $stmt = $this->db->prepare(
-            'SELECT AVG(temperature) AS temperature, AVG(humidity) AS humidity,
-                    DATE(recorded_at) AS recorded_date
+            'SELECT temperature, humidity, recorded_at
              FROM temperature_readings
              WHERE device_id = ? AND recorded_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-             GROUP BY DATE(recorded_at)
-             ORDER BY recorded_date ASC'
+             ORDER BY recorded_at ASC'
         );
         $stmt->execute([$deviceId]);
         return $stmt->fetchAll();

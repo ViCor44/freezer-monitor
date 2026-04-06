@@ -116,11 +116,11 @@ class DashboardController {
         switch ($period) {
             case '7d':
                 $rows = $this->readingModel->getLast7Days($deviceId);
-                $labels = array_map(static fn($row) => $row['recorded_date'], $rows);
+                $labels = array_map(static fn($row) => $row['recorded_at'], $rows);
                 break;
             case '30d':
                 $rows = $this->readingModel->getLast30Days($deviceId);
-                $labels = array_map(static fn($row) => $row['recorded_date'], $rows);
+                $labels = array_map(static fn($row) => $row['recorded_at'], $rows);
                 break;
             case '24h':
             default:
