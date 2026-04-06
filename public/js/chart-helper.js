@@ -155,6 +155,18 @@ async function loadChart(deviceId, period, btn, options = {}) {
                         borderWidth: 1,
                         displayColors: false,
                         callbacks: {
+                            title: function(contexts) {
+                                if (!contexts.length) return '';
+                                const idx = contexts[0].dataIndex;
+                                if (workingLabels && idx < workingLabels.length) {
+                                    const d = new Date(workingLabels[idx]);
+                                    return d.toLocaleString([], {
+                                        day: '2-digit', month: '2-digit', year: 'numeric',
+                                        hour: '2-digit', minute: '2-digit'
+                                    });
+                                }
+                                return contexts[0].label;
+                            },
                             label: function(context) {
                                 if (context.datasetIndex === 0) {
                                     return 'Temperatura: ' + (context.parsed.y || '--') + '°C';
