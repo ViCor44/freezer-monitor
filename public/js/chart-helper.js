@@ -59,14 +59,35 @@ async function loadChart(deviceId, period, btn, options = {}) {
         }
         _notes[canvasId] = notes || [];
 
+        // Fill missing dates for 7d/30d periods so the x-axis spans the full range
+        let workingLabels = data.labels;
+        let workingTemperatures = data.temperature;
+
+        if ((period === '7d' || period === '30d') && !options.from && !options.to) {
+            const days = period === '7d' ? 7 : 30;
+            const allDates = [];
+            for (let i = days; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const y = d.getFullYear();
+                const mo = String(d.getMonth() + 1).padStart(2, '0');
+                const dy = String(d.getDate()).padStart(2, '0');
+                allDates.push(`${y}-${mo}-${dy}`);
+            }
+            const dataMap = {};
+            data.labels.forEach((label, i) => { dataMap[label] = data.temperature[i]; });
+            workingLabels = allDates;
+            workingTemperatures = allDates.map(d => Object.prototype.hasOwnProperty.call(dataMap, d) ? dataMap[d] : null);
+        }
+
         // Armazenar dados brutos para acesso posterior (e.g., ao clicar no gráfico)
         _rawData[canvasId] = {
-            labels: data.labels,
-            temperatures: data.temperature
+            labels: workingLabels,
+            temperatures: workingTemperatures
         };
 
         // Format labels
-        const labels = data.labels.map(l => {
+        const labels = workingLabels.map(l => {
             const d = new Date(l);
             if (period === '24h') return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
             if (period === 'custom') {
@@ -81,7 +102,7 @@ async function loadChart(deviceId, period, btn, options = {}) {
         }
 
         // Criar dataset para notas - encontrar índices das notas nos dados
-        const notesData = data.labels.map((label, index) => {
+        const notesData = workingLabels.map((label, index) => {
             const hasNote = _notes[canvasId].some(note => {
                 const noteDate = new Date(note.noted_at);
                 const dataDate = new Date(label);
@@ -89,7 +110,7 @@ async function loadChart(deviceId, period, btn, options = {}) {
                 return noteDate.getTime() === dataDate.getTime();
             });
             // Retornar o valor de temperatura se houver nota, senão null
-            return hasNote ? data.temperature[index] : null;
+            return hasNote ? workingTemperatures[index] : null;
         });
 
         _charts[canvasId] = new Chart(canvas, {
@@ -99,7 +120,7 @@ async function loadChart(deviceId, period, btn, options = {}) {
                 datasets: [
                     {
                         label: 'Temperatura (°C)',
-                        data: data.temperature,
+                        data: workingTemperatures,
                         borderColor: '#0d6efd',
                         backgroundColor: 'rgba(13,110,253,0.08)',
                         tension: 0.3,
@@ -144,10 +165,10 @@ async function loadChart(deviceId, period, btn, options = {}) {
                                 // Só mostrar nota uma vez, no dataset de temperatura
                                 if (context.datasetIndex !== 0) return null;
                                 const dataIndex = context.dataIndex;
-                                if (data.labels && dataIndex < data.labels.length) {
+                                if (workingLabels && dataIndex < workingLabels.length) {
                                     const note = _notes[canvasId].find(n => {
                                         const noteDate = new Date(n.noted_at);
-                                        const dataDate = new Date(data.labels[dataIndex]);
+                                        const dataDate = new Date(workingLabels[dataIndex]);
                                         return noteDate.getFullYear() === dataDate.getFullYear() &&
                                                noteDate.getMonth() === dataDate.getMonth() &&
                                                noteDate.getDate() === dataDate.getDate() &&
