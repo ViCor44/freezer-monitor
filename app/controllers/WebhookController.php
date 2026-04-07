@@ -163,8 +163,11 @@ class WebhookController {
     }
 
     private function extractTemperature(array $payload, array $objectData): ?float {
-        $fromRawPayload = $this->extractTemperatureFromRawPayload($payload);
-        if ($fromRawPayload !== null) {
+        $rawFieldDetected = false;
+        $fromRawPayload = $this->extractTemperatureFromRawPayload($payload, $rawFieldDetected);
+        if ($rawFieldDetected) {
+            // If raw payload is present, trust only the sketch format parsing.
+            // This prevents stale/incorrect codec-decoded values from overriding binary payload.
             return $fromRawPayload;
         }
 
@@ -191,7 +194,7 @@ class WebhookController {
         return null;
     }
 
-    private function extractTemperatureFromRawPayload(array $payload): ?float {
+    private function extractTemperatureFromRawPayload(array $payload, bool &$rawFieldDetected = false): ?float {
         $uplink = [];
         if (isset($payload['uplink_message']) && is_array($payload['uplink_message'])) {
             $uplink = $payload['uplink_message'];
@@ -214,6 +217,8 @@ class WebhookController {
             if (!is_string($candidate)) {
                 continue;
             }
+
+            $rawFieldDetected = true;
 
             $binary = $this->decodeBase64Payload($candidate);
             if ($binary === false) {
@@ -239,6 +244,8 @@ class WebhookController {
             if (!is_array($bytes)) {
                 continue;
             }
+
+            $rawFieldDetected = true;
 
             $binary = '';
             foreach ($bytes as $byte) {
