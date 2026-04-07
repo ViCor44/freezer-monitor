@@ -62,7 +62,7 @@ class WebhookController {
         $objectData = $payload['object'] ?? $payload['decodedObject'] ?? [];
         $rxInfo     = $payload['rxInfo'][0] ?? [];
 
-        $temperature = $this->extractTemperature($objectData);
+        $temperature = $this->extractTemperature($payload, $objectData);
         $doorOpen    = $this->extractDoorOpen($objectData);
         $humidity    = isset($objectData['humidity'])    ? (float) $objectData['humidity']    : null;
         $battery     = isset($objectData['battery'])     ? (float) $objectData['battery']     : null;
@@ -133,7 +133,16 @@ class WebhookController {
         @file_put_contents($logFile, $line, FILE_APPEND);
     }
 
-    private function extractTemperature(array $objectData): ?float {
+    private function extractTemperature(array $payload, array $objectData): ?float {
+        $fromRawPayload = $this->extractTemperatureFromRawPayload($payload);
+        if ($fromRawPayload !== null) {
+            return $fromRawPayload;
+        }
+
+        return $this->extractTemperatureFromObject($objectData);
+    }
+
+    private function extractTemperatureFromObject(array $objectData): ?float {
         $candidateKeys = ['temperature', 'temp', 'temperatura', 'Temperature'];
 
         foreach ($candidateKeys as $key) {
@@ -148,6 +157,55 @@ class WebhookController {
                     return (float) $objectData['sensor'][$key];
                 }
             }
+        }
+
+        return null;
+    }
+
+    private function extractTemperatureFromRawPayload(array $payload): ?float {
+        $candidateBase64Keys = ['data', 'frmPayload', 'payload'];
+
+        foreach ($candidateBase64Keys as $key) {
+            if (!isset($payload[$key]) || !is_string($payload[$key])) {
+                continue;
+            }
+
+            $binary = base64_decode($payload[$key], true);
+            if ($binary === false || strlen($binary) < 2) {
+                continue;
+            }
+
+            $value = unpack('nvalue', substr($binary, 0, 2));
+            if (!is_array($value) || !isset($value['value'])) {
+                continue;
+            }
+
+            $raw = (int) $value['value'];
+            if ($raw >= 0x8000) {
+                $raw -= 0x10000;
+            }
+
+            // 0x8000 indicates an invalid sensor read in the device sketch.
+            if ($raw === -32768) {
+                return null;
+            }
+
+            return $raw / 100.0;
+        }
+
+        if (isset($payload['bytes']) && is_array($payload['bytes']) && count($payload['bytes']) >= 2) {
+            $msb = (int) $payload['bytes'][0] & 0xFF;
+            $lsb = (int) $payload['bytes'][1] & 0xFF;
+            $raw = ($msb << 8) | $lsb;
+            if ($raw >= 0x8000) {
+                $raw -= 0x10000;
+            }
+
+            if ($raw === -32768) {
+                return null;
+            }
+
+            return $raw / 100.0;
         }
 
         return null;
