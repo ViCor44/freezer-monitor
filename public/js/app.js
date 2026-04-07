@@ -76,6 +76,7 @@ function initDashboardLiveCards() {
         const onlineBadge = cardRoot.querySelector('.device-online-badge');
         const tempValue = cardRoot.querySelector('.device-temp-value');
         const rangeBadge = cardRoot.querySelector('.device-range-badge');
+        const doorBadge = cardRoot.querySelector('.device-door-badge');
         const lastSeen = cardRoot.querySelector('.device-last-seen');
 
         if (onlineBadge) {
@@ -90,6 +91,11 @@ function initDashboardLiveCards() {
         if (rangeBadge) {
             updateBadgeClass(rangeBadge, device.range_badge_class || 'secondary');
             rangeBadge.textContent = device.range_badge_text || 'Sem dados recentes';
+        }
+
+        if (doorBadge) {
+            updateBadgeClass(doorBadge, device.door_badge_class || 'secondary');
+            doorBadge.textContent = device.door_badge_text || 'Porta desconhecida';
         }
 
         if (lastSeen) {

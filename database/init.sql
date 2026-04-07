@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS devices (
     location        VARCHAR(200)   DEFAULT NULL,
     temp_max        DECIMAL(5,2)   NOT NULL DEFAULT 5.00,
     temp_min        DECIMAL(5,2)   NOT NULL DEFAULT -25.00,
+    door_open       TINYINT(1)     NOT NULL DEFAULT 0,
+    door_updated_at DATETIME       DEFAULT NULL,
     active          TINYINT(1)     NOT NULL DEFAULT 1,
     last_seen_at    DATETIME       DEFAULT NULL,
     created_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -78,6 +80,19 @@ CREATE TABLE IF NOT EXISTS temperature_notes (
     CONSTRAINT fk_notes_device FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE,
     CONSTRAINT fk_notes_reading FOREIGN KEY (reading_id) REFERENCES temperature_readings(id) ON DELETE SET NULL,
     CONSTRAINT fk_notes_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- Door opening events table
+CREATE TABLE IF NOT EXISTS door_openings (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    device_id       INT UNSIGNED NOT NULL,
+    reading_id      BIGINT UNSIGNED DEFAULT NULL,
+    opened_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_door_device_opened (device_id, opened_at),
+    INDEX idx_door_reading (reading_id),
+    CONSTRAINT fk_door_openings_device FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE,
+    CONSTRAINT fk_door_openings_reading FOREIGN KEY (reading_id) REFERENCES temperature_readings(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- Seed admin user (password: admin123)

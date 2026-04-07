@@ -148,6 +148,13 @@ class Device {
         return $stmt->execute([$id]);
     }
 
+    public function updateDoorStatus(int $id, int $doorOpen): bool {
+        $stmt = $this->db->prepare(
+            'UPDATE devices SET door_open = ?, door_updated_at = NOW() WHERE id = ?'
+        );
+        return $stmt->execute([$doorOpen, $id]);
+    }
+
     public function delete(int $id): bool {
         $stmt = $this->db->prepare('DELETE FROM devices WHERE id = ?');
         return $stmt->execute([$id]);
