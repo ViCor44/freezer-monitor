@@ -170,7 +170,7 @@ class WebhookController {
                 continue;
             }
 
-            $binary = base64_decode($payload[$key], true);
+            $binary = $this->decodeBase64Payload($payload[$key]);
             if ($binary === false || strlen($binary) < 2) {
                 continue;
             }
@@ -209,6 +209,27 @@ class WebhookController {
         }
 
         return null;
+    }
+
+    private function decodeBase64Payload(string $encodedPayload): string|false {
+        $encoded = trim($encodedPayload);
+        if ($encoded === '') {
+            return false;
+        }
+
+        // Accept URL-safe base64 and missing padding commonly seen in integrations.
+        $encoded = strtr($encoded, '-_', '+/');
+        $padding = strlen($encoded) % 4;
+        if ($padding > 0) {
+            $encoded .= str_repeat('=', 4 - $padding);
+        }
+
+        $decoded = base64_decode($encoded, true);
+        if ($decoded !== false) {
+            return $decoded;
+        }
+
+        return base64_decode($encoded, false);
     }
 
     private function extractDoorOpen(array $objectData): ?bool {
