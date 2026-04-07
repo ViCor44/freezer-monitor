@@ -5,3 +5,5 @@ node_modules/
 *.cache
 .DS_Store
 Thumbs.db
+storage/
+public/storage/
