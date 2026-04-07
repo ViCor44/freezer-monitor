@@ -216,26 +216,14 @@ class WebhookController {
             }
 
             $binary = $this->decodeBase64Payload($candidate);
-            if ($binary === false || strlen($binary) < 2) {
+            if ($binary === false) {
                 continue;
             }
 
-            $value = unpack('nvalue', substr($binary, 0, 2));
-            if (!is_array($value) || !isset($value['value'])) {
-                continue;
+            $parsed = $this->parseTemperatureFromSketchBinary($binary);
+            if ($parsed !== null) {
+                return $parsed;
             }
-
-            $raw = (int) $value['value'];
-            if ($raw >= 0x8000) {
-                $raw -= 0x10000;
-            }
-
-            // 0x8000 indicates an invalid sensor read in the device sketch.
-            if ($raw === -32768) {
-                return null;
-            }
-
-            return $raw / 100.0;
         }
 
         $candidateBytesArrays = [
@@ -248,25 +236,56 @@ class WebhookController {
         ];
 
         foreach ($candidateBytesArrays as $bytes) {
-            if (!is_array($bytes) || count($bytes) < 2) {
+            if (!is_array($bytes)) {
                 continue;
             }
 
-            $msb = (int) $bytes[0] & 0xFF;
-            $lsb = (int) $bytes[1] & 0xFF;
-            $raw = ($msb << 8) | $lsb;
-            if ($raw >= 0x8000) {
-                $raw -= 0x10000;
+            $binary = '';
+            foreach ($bytes as $byte) {
+                if (!is_numeric($byte)) {
+                    $binary = '';
+                    break;
+                }
+                $binary .= chr(((int) $byte) & 0xFF);
             }
 
-            if ($raw === -32768) {
-                return null;
+            if ($binary === '') {
+                continue;
             }
 
-            return $raw / 100.0;
+            $parsed = $this->parseTemperatureFromSketchBinary($binary);
+            if ($parsed !== null) {
+                return $parsed;
+            }
         }
 
         return null;
+    }
+
+    private function parseTemperatureFromSketchBinary(string $binary): ?float {
+        $size = strlen($binary);
+
+        // Current device sketch sends 2 bytes temperature, optionally 1 extra byte in future.
+        if ($size !== 2 && $size !== 3) {
+            return null;
+        }
+
+        $value = unpack('nvalue', substr($binary, 0, 2));
+        if (!is_array($value) || !isset($value['value'])) {
+            return null;
+        }
+
+        $raw = (int) $value['value'];
+        if ($raw >= 0x8000) {
+            $raw -= 0x10000;
+        }
+
+        // 0x8000 indicates an invalid sensor read in the device sketch.
+        if ($raw === -32768) {
+            return null;
+        }
+
+        return $raw / 100.0;
     }
 
     private function decodeBase64Payload(string $encodedPayload): string|false {
