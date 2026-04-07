@@ -40,13 +40,32 @@ class WebhookController {
         $this->logIncomingPayload($raw);
         $payload = json_decode($raw, true);
 
-        if (!$payload || !isset($payload['deviceInfo']['devEui'])) {
+        if (!$payload) {
             http_response_code(400);
             echo json_encode(['error' => 'Payload invalido']);
             exit;
         }
 
-        $devEui = strtolower($payload['deviceInfo']['devEui']);
+        $uplink = [];
+        if (isset($payload['uplink_message']) && is_array($payload['uplink_message'])) {
+            $uplink = $payload['uplink_message'];
+        } elseif (isset($payload['uplinkMessage']) && is_array($payload['uplinkMessage'])) {
+            $uplink = $payload['uplinkMessage'];
+        }
+
+        $devEui = $payload['deviceInfo']['devEui']
+            ?? $payload['device_info']['dev_eui']
+            ?? $uplink['deviceInfo']['devEui']
+            ?? $uplink['device_info']['dev_eui']
+            ?? null;
+
+        if (!is_string($devEui) || trim($devEui) === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Device EUI ausente no payload']);
+            exit;
+        }
+
+        $devEui = strtolower($devEui);
         $device = $this->deviceModel->findByDevEui($devEui);
 
         if (!$device || !$device['active']) {
@@ -59,8 +78,18 @@ class WebhookController {
         $this->deviceModel->updateLastSeen((int) $device['id']);
 
         // Accept common decoded payload keys produced by ChirpStack codecs.
-        $objectData = $payload['object'] ?? $payload['decodedObject'] ?? [];
-        $rxInfo     = $payload['rxInfo'][0] ?? [];
+        $objectData = $payload['object']
+            ?? $payload['decodedObject']
+            ?? $payload['decoded_object']
+            ?? $uplink['object']
+            ?? $uplink['decodedObject']
+            ?? $uplink['decoded_object']
+            ?? [];
+        $rxInfo = $payload['rxInfo'][0]
+            ?? $payload['rx_info'][0]
+            ?? $uplink['rxInfo'][0]
+            ?? $uplink['rx_info'][0]
+            ?? [];
 
         $temperature = $this->extractTemperature($payload, $objectData);
         $doorOpen    = $this->extractDoorOpen($objectData);
@@ -163,14 +192,30 @@ class WebhookController {
     }
 
     private function extractTemperatureFromRawPayload(array $payload): ?float {
-        $candidateBase64Keys = ['data', 'frmPayload', 'payload'];
+        $uplink = [];
+        if (isset($payload['uplink_message']) && is_array($payload['uplink_message'])) {
+            $uplink = $payload['uplink_message'];
+        } elseif (isset($payload['uplinkMessage']) && is_array($payload['uplinkMessage'])) {
+            $uplink = $payload['uplinkMessage'];
+        }
 
-        foreach ($candidateBase64Keys as $key) {
-            if (!isset($payload[$key]) || !is_string($payload[$key])) {
+        $candidateBase64Values = [
+            $payload['data'] ?? null,
+            $payload['frmPayload'] ?? null,
+            $payload['frm_payload'] ?? null,
+            $payload['payload'] ?? null,
+            $uplink['data'] ?? null,
+            $uplink['frmPayload'] ?? null,
+            $uplink['frm_payload'] ?? null,
+            $uplink['payload'] ?? null,
+        ];
+
+        foreach ($candidateBase64Values as $candidate) {
+            if (!is_string($candidate)) {
                 continue;
             }
 
-            $binary = $this->decodeBase64Payload($payload[$key]);
+            $binary = $this->decodeBase64Payload($candidate);
             if ($binary === false || strlen($binary) < 2) {
                 continue;
             }
@@ -193,9 +238,22 @@ class WebhookController {
             return $raw / 100.0;
         }
 
-        if (isset($payload['bytes']) && is_array($payload['bytes']) && count($payload['bytes']) >= 2) {
-            $msb = (int) $payload['bytes'][0] & 0xFF;
-            $lsb = (int) $payload['bytes'][1] & 0xFF;
+        $candidateBytesArrays = [
+            $payload['bytes'] ?? null,
+            $payload['dataBytes'] ?? null,
+            $payload['data_bytes'] ?? null,
+            $uplink['bytes'] ?? null,
+            $uplink['dataBytes'] ?? null,
+            $uplink['data_bytes'] ?? null,
+        ];
+
+        foreach ($candidateBytesArrays as $bytes) {
+            if (!is_array($bytes) || count($bytes) < 2) {
+                continue;
+            }
+
+            $msb = (int) $bytes[0] & 0xFF;
+            $lsb = (int) $bytes[1] & 0xFF;
             $raw = ($msb << 8) | $lsb;
             if ($raw >= 0x8000) {
                 $raw -= 0x10000;
