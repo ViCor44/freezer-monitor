@@ -18,14 +18,9 @@ const int DOOR_PIN = 7;               // Reed switch/contact sensor pin
 const uint8_t DOOR_OPEN_VALUE = HIGH; // INPUT_PULLUP: HIGH=open, LOW=closed
 
 const unsigned long measurementInterval = 300000UL; // 5 min safety heartbeat
-const unsigned long DOOR_DEBOUNCE_MS = 1500UL;
-const unsigned long DOOR_EVENT_MIN_INTERVAL_MS = 10000UL;
-const unsigned long MIN_ANY_UPLINK_INTERVAL_MS = 20000UL;
-const uint8_t DOOR_CONFIRM_POLLS = 2;
+const unsigned long DOOR_DEBOUNCE_MS = 300UL;
 unsigned long lastMeasure = 0;
-unsigned long doorSampleChangedAtMs = 0;
-unsigned long lastDoorUplinkAtMs = 0;
-unsigned long lastAnyUplinkAtMs = 0;
+volatile unsigned long doorIrqAtMs = 0;
 
 // -------------------- LoRaWAN OTAA --------------------
 uint8_t devEui[] = { 0x92, 0x4a, 0x7f, 0x78, 0xd9, 0xcf, 0x8d, 0xbf };
@@ -60,11 +55,6 @@ SSD1306Wire factory_display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, R
 static float lastTempC = NAN;
 static int16_t lastTempRaw = (int16_t)0x8000; // sentinel for invalid/unavailable
 static bool stableDoorOpen = true;
-static bool lastDoorSample = true;
-static uint8_t sameStatePolls = 0;
-static bool lastSentDoorOpen = true;
-static bool hasSentDoorState = false;
-static bool startupUplinkPending = true;
 
 volatile bool doorIrqPending = false;
 bool forceImmediateUplink = false;
@@ -80,6 +70,7 @@ bool readDoorOpen() {
 }
 
 void IRAM_ATTR onDoorChangeISR() {
+  doorIrqAtMs = millis();
   doorIrqPending = true;
 }
 
@@ -135,45 +126,23 @@ void measureTemperature() {
 }
 
 void handleDoorChangeEvent() {
-  // After first edge interrupt, keep checking until state settles.
-  if (!doorIrqPending && lastDoorSample == stableDoorOpen) {
+  if (!doorIrqPending) {
     return;
   }
 
-  if (doorIrqPending) {
-    doorIrqPending = false;
-  }
-  bool currentSample = readDoorOpenStable();
   unsigned long now = millis();
-
-  if (currentSample != lastDoorSample) {
-    lastDoorSample = currentSample;
-    doorSampleChangedAtMs = now;
-    sameStatePolls = 0;
+  if (now - doorIrqAtMs < DOOR_DEBOUNCE_MS) {
     return;
   }
+
+  doorIrqPending = false;
+  bool currentSample = readDoorOpenStable();
 
   if (currentSample == stableDoorOpen) {
-    sameStatePolls = 0;
-    return;
-  }
-
-  if (now - doorSampleChangedAtMs < DOOR_DEBOUNCE_MS) {
-    return;
-  }
-
-  if (sameStatePolls < DOOR_CONFIRM_POLLS) {
-    sameStatePolls++;
-    return;
-  }
-
-  if (lastDoorUplinkAtMs != 0 && (now - lastDoorUplinkAtMs) < DOOR_EVENT_MIN_INTERVAL_MS) {
     return;
   }
 
   stableDoorOpen = currentSample;
-  lastDoorUplinkAtMs = now;
-  sameStatePolls = 0;
   forceImmediateUplink = true;
 
   // Move state machine to SEND to transmit immediately.
@@ -187,11 +156,7 @@ void handleDoorChangeEvent() {
 bool buildPayload() {
   unsigned long now = millis();
   const bool periodicDue = (now - lastMeasure >= measurementInterval);
-  if (!forceImmediateUplink && !periodicDue && !startupUplinkPending) {
-    return false;
-  }
-
-  if (lastAnyUplinkAtMs != 0 && (now - lastAnyUplinkAtMs) < MIN_ANY_UPLINK_INTERVAL_MS) {
+  if (!forceImmediateUplink && !periodicDue) {
     return false;
   }
 
@@ -200,12 +165,7 @@ bool buildPayload() {
 
   bool doorOpen = stableDoorOpen;
 
-  // Safety guard: if state did not change since last uplink, skip transmission.
-  if (sendDueToDoorChange && hasSentDoorState && doorOpen == lastSentDoorOpen) {
-    return false;
-  }
-
-  // Measure temperature only when an event must be sent.
+  // Measure temperature on every transmission.
   measureTemperature();
 
   uint8_t doorByte = doorOpen ? 1 : 0;
@@ -216,28 +176,19 @@ bool buildPayload() {
   appData[1] = lastTempRaw & 0xFF;
   appData[2] = doorByte;
 
-  if (sendDueToDoorChange) {
+  if (sendDueToDoorChange && !periodicDue) {
     Serial.printf("Door event uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
                   (int)lastTempRaw,
                   doorOpen ? "OPEN" : "CLOSED",
                   appData[0], appData[1], appData[2]);
-  } else if (startupUplinkPending) {
-    Serial.printf("Startup uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
-                  (int)lastTempRaw,
-                  doorOpen ? "OPEN" : "CLOSED",
-                  appData[0], appData[1], appData[2]);
   } else {
-    Serial.printf("Heartbeat uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
+    Serial.printf("Periodic uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
                   (int)lastTempRaw,
                   doorOpen ? "OPEN" : "CLOSED",
                   appData[0], appData[1], appData[2]);
   }
 
-  lastSentDoorOpen = doorOpen;
-  hasSentDoorState = true;
-  startupUplinkPending = false;
   lastMeasure = now;
-  lastAnyUplinkAtMs = now;
   oledDraw(lastTempC, doorOpen);
   return true;
 }
@@ -255,21 +206,16 @@ void setup() {
 
   pinMode(DOOR_PIN, INPUT_PULLUP);
   stableDoorOpen = readDoorOpenStable();
-  lastDoorSample = stableDoorOpen;
-  doorSampleChangedAtMs = millis();
   attachInterrupt(digitalPinToInterrupt(DOOR_PIN), onDoorChangeISR, CHANGE);
 
   factory_display.init();
   factory_display.flipScreenVertically();
   oledDraw(NAN, stableDoorOpen);
 
-  // Persist initial door state and schedule one startup uplink.
-  lastSentDoorOpen = stableDoorOpen;
-  hasSentDoorState = true;
-  startupUplinkPending = true;
-  lastMeasure = millis();
+  // Start periodic timer and force first send immediately.
+  lastMeasure = millis() - measurementInterval;
 
-  Serial.println("=== LoRa node with door-event uplink + startup/heartbeat safety ===");
+  Serial.println("=== LoRa node: periodic 5min + immediate door events ===");
 }
 
 void loop() {
