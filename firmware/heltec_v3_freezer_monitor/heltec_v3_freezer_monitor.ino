@@ -205,6 +205,9 @@ void loop() {
         LoRaWAN.send();
         deviceState = DEVICE_STATE_CYCLE;
       } else {
+        // No data to send; re-arm wake timer so door polling and 5min check continue.
+        txDutyCycleTime = appTxDutyCycle;
+        LoRaWAN.cycle(txDutyCycleTime);
         deviceState = DEVICE_STATE_SLEEP;
       }
       break;
