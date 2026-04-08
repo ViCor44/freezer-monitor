@@ -17,8 +17,7 @@ const int ONE_WIRE_PIN = 4;
 const int DOOR_PIN = 7;               // Reed switch/contact sensor pin
 const uint8_t DOOR_OPEN_VALUE = HIGH; // INPUT_PULLUP: HIGH=open, LOW=closed
 
-const unsigned long measurementInterval = 300000UL; // 5 min periodic uplink
-unsigned long lastMeasure = 0;
+const unsigned long measurementInterval = 300000UL; // for reference only; LoRaWAN timer drives cadence
 
 // -------------------- LoRaWAN OTAA --------------------
 uint8_t devEui[] = { 0x92, 0x4a, 0x7f, 0x78, 0xd9, 0xcf, 0x8d, 0xbf };
@@ -35,9 +34,9 @@ uint16_t userChannelsMask[6] = { 0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 
 LoRaMacRegion_t loraWanRegion = LORAMAC_REGION_EU868;
 DeviceClass_t   loraWanClass  = CLASS_A;
 
-// Wake cycle: short so door changes are detected quickly.
-// Actual uplink frequency is still controlled by buildPayload().
-uint32_t appTxDutyCycle = 15000UL;
+// Duty cycle matches measurement interval: the LoRaWAN timer IS the 5-min periodic trigger.
+// Door events fire immediately via GPIO interrupt, independent of this timer.
+uint32_t appTxDutyCycle = 300000UL;
 bool overTheAirActivation = true;
 bool loraWanAdr = true;
 bool isTxConfirmed = false;
@@ -54,7 +53,12 @@ static float lastTempC = NAN;
 static int16_t lastTempRaw = (int16_t)0x8000; // sentinel for invalid/unavailable
 static bool stableDoorOpen = true;
 static bool lastSentDoorOpen = true;
+volatile bool doorInterruptFired = false;
 bool forceImmediateUplink = false;
+
+void IRAM_ATTR doorISR() {
+  doorInterruptFired = true;
+}
 
 // -------------------- Functions --------------------
 void keepOLEDOn() {
@@ -80,13 +84,19 @@ bool readDoorOpenStable() {
   return openCount >= 4;
 }
 
-void checkDoorOnWake() {
+void checkDoorInterrupt() {
+  if (!doorInterruptFired) return;
+  doorInterruptFired = false;
+
+  delay(50); // simple debounce
   bool current = readDoorOpenStable();
   stableDoorOpen = current;
 
   if (current != lastSentDoorOpen) {
     forceImmediateUplink = true;
-    Serial.printf("Door changed -> %s\n", current ? "OPEN" : "CLOSED");
+    Serial.printf("Door interrupt -> %s (immediate uplink)\n", current ? "OPEN" : "CLOSED");
+    // Override LoRaWAN timer and send immediately.
+    deviceState = DEVICE_STATE_SEND;
   }
 }
 
@@ -129,12 +139,8 @@ void measureTemperature() {
 
 
 bool buildPayload() {
-  unsigned long now = millis();
-  const bool periodicDue = (now - lastMeasure >= measurementInterval);
-  if (!forceImmediateUplink && !periodicDue) {
-    return false;
-  }
-
+  // Called either by the 5-min LoRaWAN duty cycle timer or by forceImmediateUplink
+  // (set from the door GPIO interrupt). Both cases should always produce a payload.
   forceImmediateUplink = false;
 
   bool doorOpen = stableDoorOpen;
@@ -156,7 +162,6 @@ bool buildPayload() {
                 doorOpen ? "OPEN" : "CLOSED",
                 appData[0], appData[1], appData[2]);
 
-  lastMeasure = now;
   oledDraw(lastTempC, doorOpen);
   return true;
 }
@@ -175,19 +180,19 @@ void setup() {
   pinMode(DOOR_PIN, INPUT_PULLUP);
   stableDoorOpen = readDoorOpenStable();
   lastSentDoorOpen = stableDoorOpen;
+  attachInterrupt(digitalPinToInterrupt(DOOR_PIN), doorISR, CHANGE);
 
   factory_display.init();
   factory_display.flipScreenVertically();
   oledDraw(NAN, stableDoorOpen);
 
-  // Start periodic timer and force first send immediately.
-  lastMeasure = millis() - measurementInterval;
-
+  // The LoRaWAN duty cycle timer drives the first send.
   Serial.println("=== LoRa node: periodic 5min + immediate door events ===");
 }
 
 void loop() {
   keepOLEDOn();
+  checkDoorInterrupt();
 
   switch (deviceState) {
     case DEVICE_STATE_INIT:
@@ -201,15 +206,9 @@ void loop() {
       break;
 
     case DEVICE_STATE_SEND:
-      if (buildPayload()) {
-        LoRaWAN.send();
-        deviceState = DEVICE_STATE_CYCLE;
-      } else {
-        // No data to send; re-arm wake timer so door polling and 5min check continue.
-        txDutyCycleTime = appTxDutyCycle;
-        LoRaWAN.cycle(txDutyCycleTime);
-        deviceState = DEVICE_STATE_SLEEP;
-      }
+      buildPayload();
+      LoRaWAN.send();
+      deviceState = DEVICE_STATE_CYCLE;
       break;
 
     case DEVICE_STATE_CYCLE:
@@ -219,9 +218,8 @@ void loop() {
       break;
 
     case DEVICE_STATE_SLEEP:
-      keepOLEDOn();            // reinforce before sleep
-      LoRaWAN.sleep(loraWanClass);  // manages Class A RX windows and duty cycle timer
-      checkDoorOnWake();        // check door state each time we wake
+      keepOLEDOn();
+      LoRaWAN.sleep(loraWanClass);
       break;
 
     default:
