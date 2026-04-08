@@ -19,7 +19,7 @@ const uint8_t DOOR_OPEN_VALUE = HIGH; // INPUT_PULLUP: HIGH=open, LOW=closed
 
 const unsigned long measurementInterval = 300000UL; // 5 min safety heartbeat
 const unsigned long DOOR_DEBOUNCE_MS = 1500UL;
-const unsigned long DOOR_EVENT_MIN_INTERVAL_MS = 60000UL;
+const unsigned long DOOR_EVENT_MIN_INTERVAL_MS = 10000UL;
 const unsigned long MIN_ANY_UPLINK_INTERVAL_MS = 20000UL;
 const uint8_t DOOR_CONFIRM_POLLS = 2;
 unsigned long lastMeasure = 0;
@@ -135,11 +135,14 @@ void measureTemperature() {
 }
 
 void handleDoorChangeEvent() {
-  if (!doorIrqPending) {
+  // After first edge interrupt, keep checking until state settles.
+  if (!doorIrqPending && lastDoorSample == stableDoorOpen) {
     return;
   }
 
-  doorIrqPending = false;
+  if (doorIrqPending) {
+    doorIrqPending = false;
+  }
   bool currentSample = readDoorOpenStable();
   unsigned long now = millis();
 
