@@ -67,11 +67,28 @@ function initDashboardLiveCards() {
         el.classList.add('bg-' + className);
     }
 
+    function normalizeDoorStatusBadge(cardRoot, hasRecentTemperature) {
+        if (!cardRoot || hasRecentTemperature) {
+            return;
+        }
+
+        const badges = cardRoot.querySelectorAll('.badge');
+        badges.forEach(function (badge) {
+            const text = (badge.textContent || '').trim().toLowerCase();
+            if (text === 'porta aberta' || text === 'porta fechada') {
+                updateBadgeClass(badge, 'secondary');
+                badge.textContent = 'Estado da porta desconhecido';
+            }
+        });
+    }
+
     function renderDeviceCard(device) {
         const cardRoot = cardsContainer.querySelector('[data-device-id="' + device.id + '"]');
         if (!cardRoot) {
             return;
         }
+
+        const hasRecentTemperature = device.temperature !== null && device.temperature !== undefined;
 
         const onlineBadge = cardRoot.querySelector('.device-online-badge');
         const tempValue = cardRoot.querySelector('.device-temp-value');
@@ -94,9 +111,16 @@ function initDashboardLiveCards() {
         }
 
         if (doorBadge) {
-            updateBadgeClass(doorBadge, device.door_badge_class || 'secondary');
-            doorBadge.textContent = device.door_badge_text || 'Porta desconhecida';
+            if (hasRecentTemperature) {
+                updateBadgeClass(doorBadge, device.door_badge_class || 'secondary');
+                doorBadge.textContent = device.door_badge_text || 'Porta desconhecida';
+            } else {
+                updateBadgeClass(doorBadge, 'secondary');
+                doorBadge.textContent = 'Estado da porta desconhecido';
+            }
         }
+
+        normalizeDoorStatusBadge(cardRoot, hasRecentTemperature);
 
         if (lastSeen) {
             lastSeen.textContent = 'Ultima comunicacao: ' + (device.last_seen_text || 'N/A');
