@@ -41,7 +41,7 @@ DeviceClass_t   loraWanClass  = CLASS_A;
 
 // Keep the LoRaWAN cycle short so door state changes are picked up quickly.
 // Actual uplink frequency is still controlled by buildPayload().
-uint32_t appTxDutyCycle = 30000UL;
+uint32_t appTxDutyCycle = 300000UL;
 bool overTheAirActivation = true;
 bool loraWanAdr = true;
 bool isTxConfirmed = false;
@@ -128,7 +128,7 @@ void handleDoorChangeEvent() {
   }
   lastDoorPollAtMs = now;
 
-  bool currentSample = readDoorOpen();
+  bool currentSample = readDoorOpenStable();
 
   if (currentSample != rawDoorSample) {
     rawDoorSample = currentSample;
@@ -250,8 +250,8 @@ void loop() {
       if (forceImmediateUplink || (millis() - lastMeasure >= measurementInterval)) {
         deviceState = DEVICE_STATE_SEND;
       } else {
-        keepOLEDOn();
-        LoRaWAN.sleep(loraWanClass);
+        // Keep loop responsive for door polling; avoid 30s blocking sleep cadence.
+        delay(20);
       }
       break;
 
