@@ -17,10 +17,12 @@ const int ONE_WIRE_PIN = 4;
 const int DOOR_PIN = 7;               // Reed switch/contact sensor pin
 const uint8_t DOOR_OPEN_VALUE = HIGH; // INPUT_PULLUP: HIGH=open, LOW=closed
 
+const unsigned long measurementInterval = 300000UL; // 5 min safety heartbeat
 const unsigned long DOOR_DEBOUNCE_MS = 1500UL;
 const unsigned long DOOR_EVENT_MIN_INTERVAL_MS = 60000UL;
 const unsigned long MIN_ANY_UPLINK_INTERVAL_MS = 20000UL;
 const uint8_t DOOR_CONFIRM_POLLS = 2;
+unsigned long lastMeasure = 0;
 unsigned long doorSampleChangedAtMs = 0;
 unsigned long lastDoorUplinkAtMs = 0;
 unsigned long lastAnyUplinkAtMs = 0;
@@ -42,7 +44,7 @@ DeviceClass_t   loraWanClass  = CLASS_A;
 
 // Keep the LoRaWAN cycle short so door state changes are picked up quickly.
 // Actual uplink frequency is still controlled by buildPayload().
-uint32_t appTxDutyCycle = 5000UL;
+uint32_t appTxDutyCycle = 30000UL;
 bool overTheAirActivation = true;
 bool loraWanAdr = true;
 bool isTxConfirmed = false;
@@ -62,7 +64,9 @@ static bool lastDoorSample = true;
 static uint8_t sameStatePolls = 0;
 static bool lastSentDoorOpen = true;
 static bool hasSentDoorState = false;
+static bool startupUplinkPending = true;
 
+volatile bool doorIrqPending = false;
 bool forceImmediateUplink = false;
 
 // -------------------- Functions --------------------
@@ -73,6 +77,10 @@ void keepOLEDOn() {
 
 bool readDoorOpen() {
   return digitalRead(DOOR_PIN) == DOOR_OPEN_VALUE;
+}
+
+void IRAM_ATTR onDoorChangeISR() {
+  doorIrqPending = true;
 }
 
 bool readDoorOpenStable() {
@@ -127,6 +135,11 @@ void measureTemperature() {
 }
 
 void handleDoorChangeEvent() {
+  if (!doorIrqPending) {
+    return;
+  }
+
+  doorIrqPending = false;
   bool currentSample = readDoorOpenStable();
   unsigned long now = millis();
 
@@ -151,7 +164,7 @@ void handleDoorChangeEvent() {
     return;
   }
 
-  if (now - lastDoorUplinkAtMs < DOOR_EVENT_MIN_INTERVAL_MS) {
+  if (lastDoorUplinkAtMs != 0 && (now - lastDoorUplinkAtMs) < DOOR_EVENT_MIN_INTERVAL_MS) {
     return;
   }
 
@@ -170,7 +183,8 @@ void handleDoorChangeEvent() {
 
 bool buildPayload() {
   unsigned long now = millis();
-  if (!forceImmediateUplink) {
+  const bool periodicDue = (now - lastMeasure >= measurementInterval);
+  if (!forceImmediateUplink && !periodicDue && !startupUplinkPending) {
     return false;
   }
 
@@ -178,12 +192,13 @@ bool buildPayload() {
     return false;
   }
 
+  const bool sendDueToDoorChange = forceImmediateUplink;
   forceImmediateUplink = false;
 
   bool doorOpen = stableDoorOpen;
 
   // Safety guard: if state did not change since last uplink, skip transmission.
-  if (hasSentDoorState && doorOpen == lastSentDoorOpen) {
+  if (sendDueToDoorChange && hasSentDoorState && doorOpen == lastSentDoorOpen) {
     return false;
   }
 
@@ -198,13 +213,27 @@ bool buildPayload() {
   appData[1] = lastTempRaw & 0xFF;
   appData[2] = doorByte;
 
-  Serial.printf("Door event uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
-                (int)lastTempRaw,
-                doorOpen ? "OPEN" : "CLOSED",
-                appData[0], appData[1], appData[2]);
+  if (sendDueToDoorChange) {
+    Serial.printf("Door event uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
+                  (int)lastTempRaw,
+                  doorOpen ? "OPEN" : "CLOSED",
+                  appData[0], appData[1], appData[2]);
+  } else if (startupUplinkPending) {
+    Serial.printf("Startup uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
+                  (int)lastTempRaw,
+                  doorOpen ? "OPEN" : "CLOSED",
+                  appData[0], appData[1], appData[2]);
+  } else {
+    Serial.printf("Heartbeat uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
+                  (int)lastTempRaw,
+                  doorOpen ? "OPEN" : "CLOSED",
+                  appData[0], appData[1], appData[2]);
+  }
 
   lastSentDoorOpen = doorOpen;
   hasSentDoorState = true;
+  startupUplinkPending = false;
+  lastMeasure = now;
   lastAnyUplinkAtMs = now;
   oledDraw(lastTempC, doorOpen);
   return true;
@@ -225,16 +254,19 @@ void setup() {
   stableDoorOpen = readDoorOpenStable();
   lastDoorSample = stableDoorOpen;
   doorSampleChangedAtMs = millis();
+  attachInterrupt(digitalPinToInterrupt(DOOR_PIN), onDoorChangeISR, CHANGE);
 
   factory_display.init();
   factory_display.flipScreenVertically();
   oledDraw(NAN, stableDoorOpen);
 
-  // Persist initial door state so first event only happens after a real transition.
+  // Persist initial door state and schedule one startup uplink.
   lastSentDoorOpen = stableDoorOpen;
   hasSentDoorState = true;
+  startupUplinkPending = true;
+  lastMeasure = millis();
 
-  Serial.println("=== LoRa node with uplink only on door state changes ===");
+  Serial.println("=== LoRa node with door-event uplink + startup/heartbeat safety ===");
 }
 
 void loop() {
