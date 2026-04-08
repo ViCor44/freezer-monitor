@@ -92,7 +92,7 @@ class WebhookController {
             ?? [];
 
         $temperature = $this->extractTemperature($payload, $objectData);
-        $doorOpen    = $this->extractDoorOpen($objectData);
+        $doorOpen    = $this->extractDoorOpen($payload, $objectData);
         $humidity    = isset($objectData['humidity'])    ? (float) $objectData['humidity']    : null;
         $battery     = isset($objectData['battery'])     ? (float) $objectData['battery']     : null;
         $rssi        = isset($rxInfo['rssi'])             ? (int)   $rxInfo['rssi']            : null;
@@ -195,6 +195,15 @@ class WebhookController {
     }
 
     private function extractTemperatureFromRawPayload(array $payload, bool &$rawFieldDetected = false): ?float {
+        $binary = $this->extractSketchBinaryPayload($payload, $rawFieldDetected);
+        if ($binary === null) {
+            return null;
+        }
+
+        return $this->parseTemperatureFromSketchBinary($binary);
+    }
+
+    private function extractSketchBinaryPayload(array $payload, bool &$rawFieldDetected = false): ?string {
         $uplink = [];
         if (isset($payload['uplink_message']) && is_array($payload['uplink_message'])) {
             $uplink = $payload['uplink_message'];
@@ -225,10 +234,7 @@ class WebhookController {
                 continue;
             }
 
-            $parsed = $this->parseTemperatureFromSketchBinary($binary);
-            if ($parsed !== null) {
-                return $parsed;
-            }
+            return $binary;
         }
 
         $candidateBytesArrays = [
@@ -260,10 +266,7 @@ class WebhookController {
                 continue;
             }
 
-            $parsed = $this->parseTemperatureFromSketchBinary($binary);
-            if ($parsed !== null) {
-                return $parsed;
-            }
+            return $binary;
         }
 
         return null;
@@ -316,7 +319,13 @@ class WebhookController {
         return base64_decode($encoded, false);
     }
 
-    private function extractDoorOpen(array $objectData): ?bool {
+    private function extractDoorOpen(array $payload, array $objectData): ?bool {
+        $rawFieldDetected = false;
+        $binary = $this->extractSketchBinaryPayload($payload, $rawFieldDetected);
+        if ($rawFieldDetected) {
+            return $this->parseDoorOpenFromSketchBinary($binary);
+        }
+
         $candidateKeys = ['door_open', 'doorOpen', 'door', 'porta_aberta', 'contact', 'reed'];
 
         foreach ($candidateKeys as $key) {
@@ -346,6 +355,18 @@ class WebhookController {
         }
 
         return null;
+    }
+
+    private function parseDoorOpenFromSketchBinary(?string $binary): ?bool {
+        if ($binary === null) {
+            return null;
+        }
+
+        if (strlen($binary) < 3) {
+            return null;
+        }
+
+        return (ord($binary[2]) & 0x01) === 0x01;
     }
 
     private function parseDoorValue($value): ?bool {
