@@ -203,8 +203,10 @@ void loop() {
     case DEVICE_STATE_SEND:
       if (buildPayload()) {
         LoRaWAN.send();
+        deviceState = DEVICE_STATE_CYCLE;
+      } else {
+        deviceState = DEVICE_STATE_SLEEP;
       }
-      deviceState = DEVICE_STATE_CYCLE;
       break;
 
     case DEVICE_STATE_CYCLE:
