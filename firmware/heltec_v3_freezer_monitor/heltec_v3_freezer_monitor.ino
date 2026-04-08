@@ -17,12 +17,8 @@ const int ONE_WIRE_PIN = 4;
 const int DOOR_PIN = 7;               // Reed switch/contact sensor pin
 const uint8_t DOOR_OPEN_VALUE = HIGH; // INPUT_PULLUP: HIGH=open, LOW=closed
 
-const unsigned long measurementInterval = 300000UL; // 5 min safety heartbeat
-const unsigned long DOOR_DEBOUNCE_MS = 300UL;
-const unsigned long DOOR_POLL_INTERVAL_MS = 100UL;
+const unsigned long measurementInterval = 300000UL; // 5 min periodic uplink
 unsigned long lastMeasure = 0;
-unsigned long lastDoorPollAtMs = 0;
-unsigned long doorSampleChangedAtMs = 0;
 
 // -------------------- LoRaWAN OTAA --------------------
 uint8_t devEui[] = { 0x92, 0x4a, 0x7f, 0x78, 0xd9, 0xcf, 0x8d, 0xbf };
@@ -39,9 +35,9 @@ uint16_t userChannelsMask[6] = { 0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 
 LoRaMacRegion_t loraWanRegion = LORAMAC_REGION_EU868;
 DeviceClass_t   loraWanClass  = CLASS_A;
 
-// Keep the LoRaWAN cycle short so door state changes are picked up quickly.
+// Wake cycle: short so door changes are detected quickly.
 // Actual uplink frequency is still controlled by buildPayload().
-uint32_t appTxDutyCycle = 300000UL;
+uint32_t appTxDutyCycle = 15000UL;
 bool overTheAirActivation = true;
 bool loraWanAdr = true;
 bool isTxConfirmed = false;
@@ -57,7 +53,7 @@ SSD1306Wire factory_display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, R
 static float lastTempC = NAN;
 static int16_t lastTempRaw = (int16_t)0x8000; // sentinel for invalid/unavailable
 static bool stableDoorOpen = true;
-static bool rawDoorSample = true;
+static bool lastSentDoorOpen = true;
 bool forceImmediateUplink = false;
 
 // -------------------- Functions --------------------
@@ -82,6 +78,16 @@ bool readDoorOpenStable() {
   }
 
   return openCount >= 4;
+}
+
+void checkDoorOnWake() {
+  bool current = readDoorOpenStable();
+  stableDoorOpen = current;
+
+  if (current != lastSentDoorOpen) {
+    forceImmediateUplink = true;
+    Serial.printf("Door changed -> %s\n", current ? "OPEN" : "CLOSED");
+  }
 }
 
 void oledDraw(float tempC, bool doorOpen) {
@@ -121,35 +127,6 @@ void measureTemperature() {
   lastTempRaw = (int16_t)lroundf(tempC * 100.0f);
 }
 
-void handleDoorChangeEvent() {
-  unsigned long now = millis();
-  if (now - lastDoorPollAtMs < DOOR_POLL_INTERVAL_MS) {
-    return;
-  }
-  lastDoorPollAtMs = now;
-
-  bool currentSample = readDoorOpenStable();
-
-  if (currentSample != rawDoorSample) {
-    rawDoorSample = currentSample;
-    doorSampleChangedAtMs = now;
-    return;
-  }
-
-  if (currentSample == stableDoorOpen || now - doorSampleChangedAtMs < DOOR_DEBOUNCE_MS) {
-    return;
-  }
-
-  stableDoorOpen = currentSample;
-  forceImmediateUplink = true;
-
-  // Move state machine to SEND to transmit immediately.
-  if (deviceState == DEVICE_STATE_SLEEP || deviceState == DEVICE_STATE_CYCLE) {
-    deviceState = DEVICE_STATE_SEND;
-  }
-
-  Serial.printf("Door changed -> %s (immediate uplink)\n", stableDoorOpen ? "OPEN" : "CLOSED");
-}
 
 bool buildPayload() {
   unsigned long now = millis();
@@ -158,10 +135,10 @@ bool buildPayload() {
     return false;
   }
 
-  const bool sendDueToDoorChange = forceImmediateUplink;
   forceImmediateUplink = false;
 
   bool doorOpen = stableDoorOpen;
+  lastSentDoorOpen = doorOpen;
 
   // Measure temperature on every transmission.
   measureTemperature();
@@ -174,17 +151,10 @@ bool buildPayload() {
   appData[1] = lastTempRaw & 0xFF;
   appData[2] = doorByte;
 
-  if (sendDueToDoorChange && !periodicDue) {
-    Serial.printf("Door event uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
-                  (int)lastTempRaw,
-                  doorOpen ? "OPEN" : "CLOSED",
-                  appData[0], appData[1], appData[2]);
-  } else {
-    Serial.printf("Periodic uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
-                  (int)lastTempRaw,
-                  doorOpen ? "OPEN" : "CLOSED",
-                  appData[0], appData[1], appData[2]);
-  }
+  Serial.printf("Uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
+                (int)lastTempRaw,
+                doorOpen ? "OPEN" : "CLOSED",
+                appData[0], appData[1], appData[2]);
 
   lastMeasure = now;
   oledDraw(lastTempC, doorOpen);
@@ -203,10 +173,8 @@ void setup() {
   ds18b20.setResolution(12);
 
   pinMode(DOOR_PIN, INPUT_PULLUP);
-  stableDoorOpen = readDoorOpen();
-  rawDoorSample = stableDoorOpen;
-  doorSampleChangedAtMs = millis();
-  lastDoorPollAtMs = 0;
+  stableDoorOpen = readDoorOpenStable();
+  lastSentDoorOpen = stableDoorOpen;
 
   factory_display.init();
   factory_display.flipScreenVertically();
@@ -220,7 +188,6 @@ void setup() {
 
 void loop() {
   keepOLEDOn();
-  handleDoorChangeEvent();
 
   switch (deviceState) {
     case DEVICE_STATE_INIT:
@@ -247,12 +214,9 @@ void loop() {
       break;
 
     case DEVICE_STATE_SLEEP:
-      if (forceImmediateUplink || (millis() - lastMeasure >= measurementInterval)) {
-        deviceState = DEVICE_STATE_SEND;
-      } else {
-        // Keep loop responsive for door polling; avoid 30s blocking sleep cadence.
-        delay(20);
-      }
+      keepOLEDOn();            // reinforce before sleep
+      LoRaWAN.sleep(loraWanClass);  // manages Class A RX windows and duty cycle timer
+      checkDoorOnWake();        // check door state each time we wake
       break;
 
     default:
