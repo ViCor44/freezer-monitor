@@ -1,0 +1,241 @@
+#include "LoRaWan_APP.h"
+
+// DS18B20
+#define ONEWIRE_NO_DIRECT_GPIO
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// OLED Heltec V3
+#include "HT_SSD1306Wire.h"
+
+#include <math.h>
+
+// -------------------- Config --------------------
+const char* DEVICE_NAME = "Teste Pizzaria";
+
+const int ONE_WIRE_PIN = 4;
+const int DOOR_PIN = 7;               // Reed switch/contact sensor pin
+const uint8_t DOOR_OPEN_VALUE = HIGH; // INPUT_PULLUP: HIGH=open, LOW=closed
+
+const unsigned long measurementInterval = 180000UL; // 3 min
+const unsigned long DOOR_DEBOUNCE_MS = 120UL;
+unsigned long lastMeasure = 0;
+unsigned long lastDoorEventMs = 0;
+
+// -------------------- LoRaWAN OTAA --------------------
+uint8_t devEui[] = { 0x92, 0x4a, 0x7f, 0x78, 0xd9, 0xcf, 0x8d, 0xbf };
+uint8_t appEui[] = { 0xd3, 0xc2, 0xd9, 0x81, 0xb0, 0xdc, 0x99, 0x29 };
+uint8_t appKey[] = { 0x7b, 0x0d, 0x02, 0x36, 0xfb, 0x6a, 0x2a, 0x89, 0xcd, 0x0d, 0x56, 0xcb, 0x3e, 0x0d, 0x91, 0xb2 };
+
+uint8_t nwkSKey[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+uint8_t appSKey[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+uint32_t devAddr = 0x00000000;
+
+uint16_t userChannelsMask[6] = { 0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 };
+
+// -------------------- LoRaWAN Settings --------------------
+LoRaMacRegion_t loraWanRegion = LORAMAC_REGION_EU868;
+DeviceClass_t   loraWanClass  = CLASS_A;
+
+uint32_t appTxDutyCycle = 300000UL;
+bool overTheAirActivation = true;
+bool loraWanAdr = true;
+bool isTxConfirmed = false;
+uint8_t appPort = 2;
+uint8_t confirmedNbTrials = 3;
+
+// -------------------- Peripherals --------------------
+OneWire oneWire(ONE_WIRE_PIN);
+DallasTemperature ds18b20(&oneWire);
+
+SSD1306Wire factory_display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED);
+
+static float lastTempC = NAN;
+static int16_t lastTempRaw = (int16_t)0x8000; // sentinel for invalid/unavailable
+static bool lastDoorOpen = true;
+
+volatile bool doorIrqPending = false;
+bool forceImmediateUplink = false;
+
+// -------------------- Functions --------------------
+void keepOLEDOn() {
+  pinMode(Vext, OUTPUT);
+  digitalWrite(Vext, LOW);   // LOW = OLED on
+}
+
+bool readDoorOpen() {
+  return digitalRead(DOOR_PIN) == DOOR_OPEN_VALUE;
+}
+
+void IRAM_ATTR onDoorChangeISR() {
+  doorIrqPending = true;
+}
+
+void oledDraw(float tempC, bool doorOpen) {
+  keepOLEDOn();
+
+  factory_display.clear();
+  factory_display.setTextAlignment(TEXT_ALIGN_LEFT);
+  factory_display.setFont(ArialMT_Plain_10);
+  factory_display.drawString(0, 0, DEVICE_NAME);
+
+  factory_display.setFont(ArialMT_Plain_24);
+  if (isnan(tempC)) {
+    factory_display.drawString(0, 18, "--.- C");
+  } else {
+    char buf[20];
+    snprintf(buf, sizeof(buf), "%.2f C", tempC);
+    factory_display.drawString(0, 18, buf);
+  }
+
+  factory_display.setFont(ArialMT_Plain_10);
+  factory_display.drawString(0, 50, doorOpen ? "Door: OPEN" : "Door: CLOSED");
+  factory_display.display();
+}
+
+void measureTemperature() {
+  ds18b20.requestTemperatures();
+  float tempC = ds18b20.getTempCByIndex(0);
+
+  if (tempC <= -127.0f || tempC >= 85.0f) {
+    Serial.println("DS18B20: read error");
+    lastTempC = NAN;
+    lastTempRaw = (int16_t)0x8000;
+    return;
+  }
+
+  lastTempC = tempC;
+  lastTempRaw = (int16_t)lroundf(tempC * 100.0f);
+}
+
+void handleDoorChangeEvent() {
+  if (!doorIrqPending) {
+    return;
+  }
+
+  doorIrqPending = false;
+  unsigned long now = millis();
+  if (now - lastDoorEventMs < DOOR_DEBOUNCE_MS) {
+    return;
+  }
+
+  bool currentDoorOpen = readDoorOpen();
+  if (currentDoorOpen == lastDoorOpen) {
+    return;
+  }
+
+  lastDoorOpen = currentDoorOpen;
+  lastDoorEventMs = now;
+  forceImmediateUplink = true;
+
+  // Move state machine to SEND to transmit immediately.
+  if (deviceState == DEVICE_STATE_SLEEP || deviceState == DEVICE_STATE_CYCLE) {
+    deviceState = DEVICE_STATE_SEND;
+  }
+
+  Serial.printf("Door changed -> %s (immediate uplink)\n", currentDoorOpen ? "OPEN" : "CLOSED");
+}
+
+bool buildPayload() {
+  const bool periodicDue = (millis() - lastMeasure >= measurementInterval);
+  if (!periodicDue && !forceImmediateUplink) {
+    return false;
+  }
+
+  const bool sendDueToDoorChange = forceImmediateUplink && !periodicDue;
+
+  if (periodicDue) {
+    lastMeasure = millis();
+    measureTemperature();
+  }
+
+  forceImmediateUplink = false;
+
+  bool doorOpen = readDoorOpen();
+  uint8_t doorByte = doorOpen ? 1 : 0;
+
+  // Payload: temp int16 (x100) + door state byte
+  appDataSize = 3;
+  appData[0] = (lastTempRaw >> 8) & 0xFF;
+  appData[1] = lastTempRaw & 0xFF;
+  appData[2] = doorByte;
+
+  if (sendDueToDoorChange) {
+    Serial.printf("Door event uplink -> tempRaw=%d, door=%s, payload=%02X %02X %02X\n",
+                  (int)lastTempRaw,
+                  doorOpen ? "OPEN" : "CLOSED",
+                  appData[0], appData[1], appData[2]);
+  } else {
+    Serial.printf("Periodic uplink -> temp=%.2f C, door=%s, payload=%02X %02X %02X\n",
+                  lastTempC,
+                  doorOpen ? "OPEN" : "CLOSED",
+                  appData[0], appData[1], appData[2]);
+  }
+
+  oledDraw(lastTempC, doorOpen);
+  return true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(100);
+
+  keepOLEDOn();
+
+  Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
+
+  ds18b20.begin();
+  ds18b20.setResolution(12);
+
+  pinMode(DOOR_PIN, INPUT_PULLUP);
+  lastDoorOpen = readDoorOpen();
+  attachInterrupt(digitalPinToInterrupt(DOOR_PIN), onDoorChangeISR, CHANGE);
+
+  factory_display.init();
+  factory_display.flipScreenVertically();
+  oledDraw(NAN, lastDoorOpen);
+
+  // Force first periodic transmission on startup.
+  lastMeasure = millis() - measurementInterval;
+
+  Serial.println("=== LoRa node with periodic temp + immediate door uplink ===");
+}
+
+void loop() {
+  keepOLEDOn();
+  handleDoorChangeEvent();
+
+  switch (deviceState) {
+    case DEVICE_STATE_INIT:
+      LoRaWAN.init(loraWanClass, loraWanRegion);
+      LoRaWAN.setDefaultDR(5);
+      deviceState = DEVICE_STATE_JOIN;
+      break;
+
+    case DEVICE_STATE_JOIN:
+      LoRaWAN.join();
+      break;
+
+    case DEVICE_STATE_SEND:
+      if (buildPayload()) {
+        LoRaWAN.send();
+      }
+      deviceState = DEVICE_STATE_CYCLE;
+      break;
+
+    case DEVICE_STATE_CYCLE:
+      txDutyCycleTime = appTxDutyCycle + randr(-APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND);
+      LoRaWAN.cycle(txDutyCycleTime);
+      deviceState = DEVICE_STATE_SLEEP;
+      break;
+
+    case DEVICE_STATE_SLEEP:
+      keepOLEDOn();
+      LoRaWAN.sleep(loraWanClass);
+      break;
+
+    default:
+      deviceState = DEVICE_STATE_INIT;
+      break;
+  }
+}
