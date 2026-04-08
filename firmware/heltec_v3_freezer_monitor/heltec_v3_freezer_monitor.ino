@@ -247,9 +247,11 @@ void loop() {
       break;
 
     case DEVICE_STATE_SLEEP:
-      // Non-blocking idle so door polling can run continuously.
       if (forceImmediateUplink || (millis() - lastMeasure >= measurementInterval)) {
         deviceState = DEVICE_STATE_SEND;
+      } else {
+        keepOLEDOn();
+        LoRaWAN.sleep(loraWanClass);
       }
       break;
 
