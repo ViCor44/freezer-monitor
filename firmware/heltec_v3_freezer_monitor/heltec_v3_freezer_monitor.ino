@@ -19,8 +19,10 @@ const uint8_t DOOR_OPEN_VALUE = HIGH; // INPUT_PULLUP: HIGH=open, LOW=closed
 
 const unsigned long measurementInterval = 300000UL; // 5 min safety heartbeat
 const unsigned long DOOR_DEBOUNCE_MS = 300UL;
+const unsigned long DOOR_POLL_INTERVAL_MS = 100UL;
 unsigned long lastMeasure = 0;
-volatile unsigned long doorIrqAtMs = 0;
+unsigned long lastDoorPollAtMs = 0;
+unsigned long doorSampleChangedAtMs = 0;
 
 // -------------------- LoRaWAN OTAA --------------------
 uint8_t devEui[] = { 0x92, 0x4a, 0x7f, 0x78, 0xd9, 0xcf, 0x8d, 0xbf };
@@ -55,8 +57,7 @@ SSD1306Wire factory_display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, R
 static float lastTempC = NAN;
 static int16_t lastTempRaw = (int16_t)0x8000; // sentinel for invalid/unavailable
 static bool stableDoorOpen = true;
-
-volatile bool doorIrqPending = false;
+static bool rawDoorSample = true;
 bool forceImmediateUplink = false;
 
 // -------------------- Functions --------------------
@@ -67,11 +68,6 @@ void keepOLEDOn() {
 
 bool readDoorOpen() {
   return digitalRead(DOOR_PIN) == DOOR_OPEN_VALUE;
-}
-
-void IRAM_ATTR onDoorChangeISR() {
-  doorIrqAtMs = millis();
-  doorIrqPending = true;
 }
 
 bool readDoorOpenStable() {
@@ -126,19 +122,21 @@ void measureTemperature() {
 }
 
 void handleDoorChangeEvent() {
-  if (!doorIrqPending) {
-    return;
-  }
-
   unsigned long now = millis();
-  if (now - doorIrqAtMs < DOOR_DEBOUNCE_MS) {
+  if (now - lastDoorPollAtMs < DOOR_POLL_INTERVAL_MS) {
+    return;
+  }
+  lastDoorPollAtMs = now;
+
+  bool currentSample = readDoorOpen();
+
+  if (currentSample != rawDoorSample) {
+    rawDoorSample = currentSample;
+    doorSampleChangedAtMs = now;
     return;
   }
 
-  doorIrqPending = false;
-  bool currentSample = readDoorOpenStable();
-
-  if (currentSample == stableDoorOpen) {
+  if (currentSample == stableDoorOpen || now - doorSampleChangedAtMs < DOOR_DEBOUNCE_MS) {
     return;
   }
 
@@ -205,8 +203,10 @@ void setup() {
   ds18b20.setResolution(12);
 
   pinMode(DOOR_PIN, INPUT_PULLUP);
-  stableDoorOpen = readDoorOpenStable();
-  attachInterrupt(digitalPinToInterrupt(DOOR_PIN), onDoorChangeISR, CHANGE);
+  stableDoorOpen = readDoorOpen();
+  rawDoorSample = stableDoorOpen;
+  doorSampleChangedAtMs = millis();
+  lastDoorPollAtMs = 0;
 
   factory_display.init();
   factory_display.flipScreenVertically();
@@ -247,8 +247,10 @@ void loop() {
       break;
 
     case DEVICE_STATE_SLEEP:
-      keepOLEDOn();
-      LoRaWAN.sleep(loraWanClass);
+      // Non-blocking idle so door polling can run continuously.
+      if (forceImmediateUplink || (millis() - lastMeasure >= measurementInterval)) {
+        deviceState = DEVICE_STATE_SEND;
+      }
       break;
 
     default:
