@@ -254,6 +254,7 @@ class DashboardController {
         $isTempAlert = $hasRecentTemperature
             && ($lastTemp > (float) $device['temp_max'] || $lastTemp < (float) $device['temp_min']);
 
+        $hasDoorState = !empty($device['door_updated_at']);
         $isDoorOpen = isset($device['door_open']) && (int) $device['door_open'] === 1;
 
         return [
@@ -263,8 +264,9 @@ class DashboardController {
             'temperature_text' => $hasRecentTemperature ? number_format($lastTemp, 1) . '°C' : '--',
             'range_badge_class' => !$hasRecentTemperature ? 'secondary' : ($isTempAlert ? 'danger' : 'success'),
             'range_badge_text' => !$hasRecentTemperature ? 'Sem dados recentes' : ($isTempAlert ? 'Fora do intervalo' : 'Dentro do intervalo'),
-            'door_badge_class' => $isDoorOpen ? 'warning' : 'success',
-            'door_badge_text' => $isDoorOpen ? 'Porta aberta' : 'Porta fechada',
+            'has_door_state' => $hasDoorState,
+            'door_badge_class' => !$hasDoorState ? 'secondary' : ($isDoorOpen ? 'warning' : 'success'),
+            'door_badge_text' => !$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada'),
             'last_seen' => $lastSeen,
             'last_seen_text' => $lastSeen ? date('Y-m-d H:i', strtotime($lastSeen)) : 'N/A',
         ];

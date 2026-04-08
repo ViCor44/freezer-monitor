@@ -67,8 +67,8 @@ function initDashboardLiveCards() {
         el.classList.add('bg-' + className);
     }
 
-    function normalizeDoorStatusBadge(cardRoot, hasReliableDoorState) {
-        if (!cardRoot || hasReliableDoorState) {
+    function normalizeDoorStatusBadge(cardRoot, hasDoorState) {
+        if (!cardRoot || hasDoorState) {
             return;
         }
 
@@ -89,7 +89,7 @@ function initDashboardLiveCards() {
         }
 
         const hasRecentTemperature = device.temperature !== null && device.temperature !== undefined;
-        const hasReliableDoorState = !!device.is_online;
+        const hasDoorState = !!device.has_door_state;
 
         const onlineBadge = cardRoot.querySelector('.device-online-badge');
         const tempValue = cardRoot.querySelector('.device-temp-value');
@@ -112,7 +112,7 @@ function initDashboardLiveCards() {
         }
 
         if (doorBadge) {
-            if (hasReliableDoorState) {
+            if (hasDoorState) {
                 updateBadgeClass(doorBadge, device.door_badge_class || 'secondary');
                 doorBadge.textContent = device.door_badge_text || 'Porta desconhecida';
             } else {
@@ -121,7 +121,7 @@ function initDashboardLiveCards() {
             }
         }
 
-        normalizeDoorStatusBadge(cardRoot, hasReliableDoorState);
+        normalizeDoorStatusBadge(cardRoot, hasDoorState);
 
         if (lastSeen) {
             lastSeen.textContent = 'Ultima comunicacao: ' + (device.last_seen_text || 'N/A');

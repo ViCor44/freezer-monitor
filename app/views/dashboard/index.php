@@ -66,9 +66,10 @@
         || (float) $device['last_temp'] < (float) $device['temp_min']);
     $rangeBadgeClass = !$hasRecentTemperature ? 'secondary' : ($isTempAlert ? 'danger' : 'success');
     $rangeBadgeText = !$hasRecentTemperature ? 'Sem dados recentes' : ($isTempAlert ? 'Fora do intervalo' : 'Dentro do intervalo');
+    $hasDoorState = !empty($device['door_updated_at']);
     $isDoorOpen = isset($device['door_open']) && (int) $device['door_open'] === 1;
-    $doorBadgeClass = $isDoorOpen ? 'warning' : 'success';
-    $doorBadgeText = $isDoorOpen ? 'Porta aberta' : 'Porta fechada';
+    $doorBadgeClass = !$hasDoorState ? 'secondary' : ($isDoorOpen ? 'warning' : 'success');
+    $doorBadgeText = !$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada');
     ?>
     <div class="col-sm-6 col-lg-4 col-xl-3" data-device-id="<?= (int) $device['id'] ?>">
         <a

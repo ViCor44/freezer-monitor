@@ -18,8 +18,9 @@ const int DOOR_PIN = 7;               // Reed switch/contact sensor pin
 const uint8_t DOOR_OPEN_VALUE = HIGH; // INPUT_PULLUP: HIGH=open, LOW=closed
 
 const unsigned long measurementInterval = 180000UL; // 3 min
-const unsigned long DOOR_DEBOUNCE_MS = 300UL;
-const unsigned long DOOR_EVENT_MIN_INTERVAL_MS = 10000UL;
+const unsigned long DOOR_DEBOUNCE_MS = 1500UL;
+const unsigned long DOOR_EVENT_MIN_INTERVAL_MS = 60000UL;
+const uint8_t DOOR_CONFIRM_POLLS = 2;
 unsigned long lastMeasure = 0;
 unsigned long doorSampleChangedAtMs = 0;
 unsigned long lastDoorUplinkAtMs = 0;
@@ -58,6 +59,7 @@ static float lastTempC = NAN;
 static int16_t lastTempRaw = (int16_t)0x8000; // sentinel for invalid/unavailable
 static bool stableDoorOpen = true;
 static bool lastDoorSample = true;
+static uint8_t sameStatePolls = 0;
 
 bool forceImmediateUplink = false;
 
@@ -115,14 +117,21 @@ void handleDoorChangeEvent() {
   if (currentSample != lastDoorSample) {
     lastDoorSample = currentSample;
     doorSampleChangedAtMs = now;
+    sameStatePolls = 0;
     return;
   }
 
   if (currentSample == stableDoorOpen) {
+    sameStatePolls = 0;
     return;
   }
 
   if (now - doorSampleChangedAtMs < DOOR_DEBOUNCE_MS) {
+    return;
+  }
+
+  if (sameStatePolls < DOOR_CONFIRM_POLLS) {
+    sameStatePolls++;
     return;
   }
 
@@ -132,6 +141,7 @@ void handleDoorChangeEvent() {
 
   stableDoorOpen = currentSample;
   lastDoorUplinkAtMs = now;
+  sameStatePolls = 0;
   forceImmediateUplink = true;
 
   // Move state machine to SEND to transmit immediately.
