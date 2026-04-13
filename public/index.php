@@ -70,6 +70,13 @@ if (strpos($uri, '/public/') === 0) {
 
 $uri = '/' . ltrim($uri, '/');
 
+// --- API: Última leitura do dispositivo para polling do histórico ---
+if (preg_match('#^/api/device/last-reading#', $uri)) {
+    require_once $root . '/app/controllers/api/DeviceApiController.php';
+    (new DeviceApiController())->lastReading();
+    exit;
+}
+
 $routes = [
     'GET'  => [
         '/'                    => ['AuthController',      'loginPage'],
