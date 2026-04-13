@@ -359,6 +359,29 @@ document.addEventListener('DOMContentLoaded', function () {
         await refreshChart();
     });
 
+
+    // --- Atualização automática do histórico ao receber nova leitura ---
+    let lastReadingTimestamp = null;
+    async function pollLastReading() {
+        try {
+            const res = await fetch((window.BASE_URL || '') + '/api/device/last-reading?device_id=' + deviceId, {
+                credentials: 'same-origin'
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.timestamp) {
+                if (lastReadingTimestamp !== null && lastReadingTimestamp !== data.timestamp) {
+                    // Nova leitura detectada, atualizar histórico
+                    await refreshChart();
+                }
+                lastReadingTimestamp = data.timestamp;
+            }
+        } catch (e) {}
+    }
+    // Poll a cada 5 segundos
+    setInterval(pollLastReading, 5000);
+    pollLastReading();
+
     refreshChart();
     window.addEventListener('resize', adjustHistoryViewport);
 

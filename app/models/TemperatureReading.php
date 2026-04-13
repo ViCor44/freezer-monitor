@@ -89,4 +89,13 @@ class TemperatureReading {
             'SELECT COUNT(*) FROM temperature_readings WHERE DATE(recorded_at) = CURDATE()'
         )->fetchColumn();
     }
+
+    // Retorna a última leitura (mais recente) para um device
+    public function getLastByDevice(int $deviceId) {
+        $stmt = $this->db->prepare(
+            'SELECT id, created_at FROM temperature_readings WHERE device_id = ? ORDER BY created_at DESC LIMIT 1'
+        );
+        $stmt->execute([$deviceId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 }
