@@ -382,6 +382,11 @@ document.addEventListener('DOMContentLoaded', function () {
     setInterval(pollLastReading, 5000);
     pollLastReading();
 
+    // Inicializa botão ativo e carrega gráfico ao abrir a página
+    periodButtons.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    const defaultBtn = periodButtons.querySelector('button[data-period="24h"]');
+    if (defaultBtn) defaultBtn.classList.add('active');
+    currentPeriod = '24h';
     refreshChart();
     window.addEventListener('resize', adjustHistoryViewport);
 
