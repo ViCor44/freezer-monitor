@@ -116,6 +116,7 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                             <canvas id="door-openings-chart"></canvas>
                         </div>
                     </div>
+                    <?php if (!empty($deviceNotes)): ?>
                     <div class="mt-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-semibold small"><i class="bi bi-journal-text me-1"></i>Notas</span>
