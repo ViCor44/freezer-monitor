@@ -26,6 +26,7 @@ require $root . '/app/models/TemperatureReading.php';
 require $root . '/app/models/Alert.php';
 require $root . '/app/models/Note.php';
 require $root . '/app/models/RecordingPause.php';
+require $root . '/app/models/DoorOpening.php';
 require $root . '/app/controllers/AuthController.php';
 require $root . '/app/controllers/DashboardController.php';
 require $root . '/app/controllers/AdminController.php';
@@ -88,6 +89,7 @@ $routes = [
         '/dashboard'           => ['DashboardController', 'index'],
         '/dashboard/device'    => ['DashboardController', 'deviceDetails'],
         '/dashboard/chart'     => ['DashboardController', 'chartData'],
+        '/dashboard/door-chart'=> ['DashboardController', 'doorChartData'],
         '/dashboard/get-notes' => ['DashboardController', 'getNotes'],
         '/dashboard/devices/live' => ['DashboardController', 'devicesLiveData'],
         '/admin/users'         => ['AdminController',     'users'],

@@ -109,8 +109,13 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                         </div>
                     </div>
                     <canvas id="selected-device-chart" height="120"></canvas>
-
-                    <?php if (!empty($deviceNotes)): ?>
+                    <!-- Gráfico de aberturas de porta -->
+                    <div class="mt-2">
+                        <div class="text-muted small mb-1"><i class="bi bi-door-open me-1"></i>Aberturas de porta</div>
+                        <div style="position:relative; height:70px;">
+                            <canvas id="door-openings-chart"></canvas>
+                        </div>
+                    </div>
                     <div class="mt-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-semibold small"><i class="bi bi-journal-text me-1"></i>Notas</span>
@@ -368,10 +373,87 @@ document.addEventListener('DOMContentLoaded', function () {
         historyTableWrap.style.maxHeight = `${targetHeight}px`;
     }
 
-    async function refreshChart() {
-        await loadChart(deviceId, currentPeriod, null, {
-            canvasId: 'selected-device-chart',
+    let _doorChart = null;
+
+    async function loadDoorChart(period, options = {}) {
+        const params = new URLSearchParams();
+        params.set('device_id', String(deviceId));
+        if (options.from && options.to) {
+            params.set('from', options.from);
+            params.set('to', options.to);
+        } else {
+            params.set('period', period);
+        }
+
+        let data;
+        try {
+            const res = await fetch(`${window.BASE_URL || ''}/dashboard/door-chart?${params.toString()}`);
+            if (!res.ok) return;
+            data = await res.json();
+        } catch (e) { return; }
+
+        const canvas = document.getElementById('door-openings-chart');
+        if (!canvas) return;
+
+        const labels = (data.labels || []).map(l => {
+            const d = new Date(l);
+            if (period === '24h') return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            if (period === 'custom' && options.from && options.to) {
+                const rangeMs = new Date(options.to) - new Date(options.from);
+                if (rangeMs <= 3 * 86400 * 1000) return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                return d.toLocaleDateString([], {month: 'short', day: 'numeric'});
+            }
+            return d.toLocaleDateString([], {month: 'short', day: 'numeric'});
         });
+
+        if (_doorChart) { _doorChart.destroy(); }
+
+        _doorChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Aberturas',
+                    data: data.counts || [],
+                    backgroundColor: 'rgba(255, 193, 7, 0.6)',
+                    borderColor: 'rgba(255, 152, 0, 0.8)',
+                    borderWidth: 1,
+                    borderRadius: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: 0 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (ctx) => ctx[0]?.label ?? '',
+                            label: (ctx) => `Aberturas: ${ctx.parsed.y}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+                    },
+                    y: {
+                        min: 0,
+                        ticks: { stepSize: 1, maxTicksLimit: 3, font: { size: 10 } },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    }
+                }
+            }
+        });
+    }
+
+    async function refreshChart() {
+        await Promise.all([
+            loadChart(deviceId, currentPeriod, null, { canvasId: 'selected-device-chart' }),
+            loadDoorChart(currentPeriod),
+        ]);
 
         const historyData = await fetchHistoryData(currentPeriod);
         renderHistoryTable(historyData);
@@ -392,11 +474,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        await loadChart(deviceId, 'custom', null, {
-            canvasId: 'selected-device-chart',
-            from: fromInput.value,
-            to: toInput.value,
-        });
+        await Promise.all([
+            loadChart(deviceId, 'custom', null, {
+                canvasId: 'selected-device-chart',
+                from: fromInput.value,
+                to: toInput.value,
+            }),
+            loadDoorChart('custom', { from: fromInput.value, to: toInput.value }),
+        ]);
 
         const historyData = await fetchHistoryData('custom');
         renderHistoryTable(historyData);
