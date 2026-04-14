@@ -6,6 +6,7 @@ class DashboardController {
     private $readingModel;
     private $alertModel;
     private $noteModel;
+    private $pauseModel;
 
     public function __construct($db = null) {
         if ($db === null) {
@@ -15,11 +16,11 @@ class DashboardController {
         
         $this->db = $db;
         
-        // ✅ PASSAR $db AO MODELO
         $this->deviceModel = new Device($db);
         $this->readingModel = new TemperatureReading($db);
         $this->alertModel = new Alert($db);
         $this->noteModel = new Note($db);
+        $this->pauseModel = new RecordingPause($db);
     }
 
     public function index() {
@@ -57,6 +58,8 @@ class DashboardController {
             '1970-01-01 00:00:00',
             '2099-12-31 23:59:59'
         );
+
+        $devicePauses = $this->pauseModel->getByDevice($deviceId);
 
         require ROOT . '/app/views/dashboard/device_details.php';
     }
@@ -258,7 +261,8 @@ class DashboardController {
             exit;
         }
 
-        $this->deviceModel->pauseRecordings($deviceId, $reason);
+        $this->pauseModel->create($deviceId, $reason, (int) $_SESSION['user_id']);
+        $this->deviceModel->pauseRecordings($deviceId);
         echo json_encode(['success' => true]);
     }
 
@@ -285,6 +289,7 @@ class DashboardController {
             exit;
         }
 
+        $this->pauseModel->closeActive($deviceId);
         $this->deviceModel->resumeRecordings($deviceId);
         echo json_encode(['success' => true]);
     }

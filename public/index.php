@@ -25,6 +25,7 @@ require $root . '/app/models/Device.php';
 require $root . '/app/models/TemperatureReading.php';
 require $root . '/app/models/Alert.php';
 require $root . '/app/models/Note.php';
+require $root . '/app/models/RecordingPause.php';
 require $root . '/app/controllers/AuthController.php';
 require $root . '/app/controllers/DashboardController.php';
 require $root . '/app/controllers/AdminController.php';

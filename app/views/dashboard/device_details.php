@@ -138,6 +138,55 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                         </div>
                     </div>
                     <?php endif; ?>
+
+                    <?php if (!empty($devicePauses)): ?>
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold small"><i class="bi bi-pause-circle me-1 text-danger"></i>Histórico de pausas</span>
+                            <span class="badge bg-danger"><?= count($devicePauses) ?></span>
+                        </div>
+                        <div class="table-responsive" style="max-height: <?= count($devicePauses) > 7 ? '210px' : 'none' ?>; overflow-y: <?= count($devicePauses) > 7 ? 'auto' : 'visible' ?>;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width:135px">Pausado em</th>
+                                        <th>Motivo</th>
+                                        <th style="width:135px">Retomado em</th>
+                                        <th style="width:110px">Duração</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($devicePauses as $pause): ?>
+                                    <?php
+                                    $pausedAt   = $pause['paused_at']  ? date('Y-m-d H:i', strtotime($pause['paused_at']))  : '--';
+                                    $resumedAt  = $pause['resumed_at'] ? date('Y-m-d H:i', strtotime($pause['resumed_at'])) : null;
+                                    $duration   = '';
+                                    if ($pause['paused_at']) {
+                                        $end = $pause['resumed_at'] ? strtotime($pause['resumed_at']) : time();
+                                        $secs = max(0, $end - strtotime($pause['paused_at']));
+                                        $h = floor($secs / 3600);
+                                        $m = floor(($secs % 3600) / 60);
+                                        $duration = $h > 0 ? "{$h}h {$m}m" : "{$m}m";
+                                    }
+                                    ?>
+                                    <tr class="<?= $resumedAt === null ? 'table-danger' : '' ?>">
+                                        <td class="text-nowrap small"><?= $pausedAt ?></td>
+                                        <td class="small" style="white-space:pre-wrap"><?= htmlspecialchars($pause['reason']) ?></td>
+                                        <td class="text-nowrap small">
+                                            <?php if ($resumedAt): ?>
+                                                <?= $resumedAt ?>
+                                            <?php else: ?>
+                                                <span class="badge bg-danger">Ativo</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="small text-muted"><?= $duration ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

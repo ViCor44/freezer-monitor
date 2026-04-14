@@ -18,7 +18,7 @@ class Device {
     }
 
     public function getAll() {
-        $sql = "SELECT d.*, 
+        $sql = "SELECT d.*,
                        (
                            SELECT r.temperature
                            FROM temperature_readings r
@@ -32,7 +32,7 @@ class Device {
                            WHERE r.device_id = d.id
                            ORDER BY r.recorded_at DESC, r.id DESC
                            LIMIT 1
-                           ) AS last_reading,
+                       ) AS last_reading,
                        TIMESTAMPDIFF(
                            SECOND,
                            (
@@ -57,8 +57,12 @@ class Device {
                                )
                            ),
                            NOW()
-                       ) AS seconds_since_seen
+                       ) AS seconds_since_seen,
+                       rp.reason      AS pause_reason,
+                       rp.paused_at   AS paused_at
                 FROM {$this->table} d
+                LEFT JOIN recording_pauses rp
+                       ON rp.device_id = d.id AND rp.resumed_at IS NULL
                 ORDER BY d.name";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
@@ -155,16 +159,16 @@ class Device {
         return $stmt->execute([$doorOpen, $id]);
     }
 
-    public function pauseRecordings(int $id, string $reason): bool {
+    public function pauseRecordings(int $id): bool {
         $stmt = $this->db->prepare(
-            'UPDATE devices SET recordings_paused = 1, pause_reason = ?, paused_at = NOW() WHERE id = ?'
+            'UPDATE devices SET recordings_paused = 1 WHERE id = ?'
         );
-        return $stmt->execute([$reason, $id]);
+        return $stmt->execute([$id]);
     }
 
     public function resumeRecordings(int $id): bool {
         $stmt = $this->db->prepare(
-            'UPDATE devices SET recordings_paused = 0, pause_reason = NULL, paused_at = NULL WHERE id = ?'
+            'UPDATE devices SET recordings_paused = 0 WHERE id = ?'
         );
         return $stmt->execute([$id]);
     }
