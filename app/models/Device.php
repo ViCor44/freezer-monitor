@@ -12,6 +12,7 @@ if (!defined('TEMP_MIN')) {
 class Device {
     private $db;
     private $table = 'devices';
+    private ?bool $hasMonitorDoorOpeningsColumn = null;
 
     public function __construct($db) {  // ← Recebe $db
         $this->db = $db;
@@ -140,10 +141,18 @@ class Device {
         float $tempMin = TEMP_MIN,
         int $monitorDoorOpenings = 1
     ): int {
-        $stmt = $this->db->prepare(
-            'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings) VALUES (?, ?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings]);
+        if ($this->supportsDoorMonitoringOption()) {
+            $stmt = $this->db->prepare(
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings) VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings]);
+        } else {
+            $stmt = $this->db->prepare(
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min) VALUES (?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin]);
+        }
+
         return (int) $this->db->lastInsertId();
     }
 
@@ -156,10 +165,32 @@ class Device {
         int $active,
         int $monitorDoorOpenings
     ): bool {
+        if ($this->supportsDoorMonitoringOption()) {
+            $stmt = $this->db->prepare(
+                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ? WHERE id = ?'
+            );
+            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $id]);
+        }
+
         $stmt = $this->db->prepare(
-            'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ? WHERE id = ?'
+            'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ? WHERE id = ?'
         );
-        return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $id]);
+        return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $id]);
+    }
+
+    private function supportsDoorMonitoringOption(): bool {
+        if ($this->hasMonitorDoorOpeningsColumn !== null) {
+            return $this->hasMonitorDoorOpeningsColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'monitor_door_openings'");
+            $this->hasMonitorDoorOpeningsColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $this->hasMonitorDoorOpeningsColumn = false;
+        }
+
+        return $this->hasMonitorDoorOpeningsColumn;
     }
 
     public function updateLastSeen(int $id): bool {
