@@ -234,6 +234,61 @@ class DashboardController {
         ]);
     }
 
+    public function pauseDevice(): void {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            exit;
+        }
+
+        $deviceId = (int) ($_POST['device_id'] ?? 0);
+        $reason   = trim($_POST['reason'] ?? '');
+
+        if ($deviceId <= 0 || $reason === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de dispositivo ou motivo invalido']);
+            exit;
+        }
+
+        $device = $this->deviceModel->findById($deviceId);
+        if (!$device) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Dispositivo nao encontrado']);
+            exit;
+        }
+
+        $this->deviceModel->pauseRecordings($deviceId, $reason);
+        echo json_encode(['success' => true]);
+    }
+
+    public function resumeDevice(): void {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            exit;
+        }
+
+        $deviceId = (int) ($_POST['device_id'] ?? 0);
+
+        if ($deviceId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de dispositivo invalido']);
+            exit;
+        }
+
+        $device = $this->deviceModel->findById($deviceId);
+        if (!$device) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Dispositivo nao encontrado']);
+            exit;
+        }
+
+        $this->deviceModel->resumeRecordings($deviceId);
+        echo json_encode(['success' => true]);
+    }
+
     private function formatDeviceCardData(array $device): array {
         $lastSeen = $device['last_seen_at'] ?? $device['last_reading'] ?? null;
         $secondsSinceSeen = isset($device['seconds_since_seen']) ? (int) $device['seconds_since_seen'] : null;
@@ -269,6 +324,9 @@ class DashboardController {
             'door_badge_text' => !$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada'),
             'last_seen' => $lastSeen,
             'last_seen_text' => $lastSeen ? date('Y-m-d H:i', strtotime($lastSeen)) : 'N/A',
+            'recordings_paused' => !empty($device['recordings_paused']),
+            'pause_reason' => $device['pause_reason'] ?? null,
+            'paused_at' => $device['paused_at'] ?? null,
         ];
     }
 }
