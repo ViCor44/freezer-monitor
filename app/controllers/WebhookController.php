@@ -74,6 +74,14 @@ class WebhookController {
             exit;
         }
 
+        // Registos pausados: atualiza last_seen mas nao guarda temperaturas.
+        if (!empty($device['recordings_paused'])) {
+            $this->deviceModel->updateLastSeen((int) $device['id']);
+            http_response_code(202);
+            echo json_encode(['status' => 'recordings_paused']);
+            exit;
+        }
+
         // Mark the device as online as soon as any uplink is received.
         $this->deviceModel->updateLastSeen((int) $device['id']);
 

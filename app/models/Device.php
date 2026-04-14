@@ -155,6 +155,20 @@ class Device {
         return $stmt->execute([$doorOpen, $id]);
     }
 
+    public function pauseRecordings(int $id, string $reason): bool {
+        $stmt = $this->db->prepare(
+            'UPDATE devices SET recordings_paused = 1, pause_reason = ?, paused_at = NOW() WHERE id = ?'
+        );
+        return $stmt->execute([$reason, $id]);
+    }
+
+    public function resumeRecordings(int $id): bool {
+        $stmt = $this->db->prepare(
+            'UPDATE devices SET recordings_paused = 0, pause_reason = NULL, paused_at = NULL WHERE id = ?'
+        );
+        return $stmt->execute([$id]);
+    }
+
     public function delete(int $id): bool {
         $stmt = $this->db->prepare('DELETE FROM devices WHERE id = ?');
         return $stmt->execute([$id]);
