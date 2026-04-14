@@ -107,7 +107,8 @@ class WebhookController {
         $snr         = isset($rxInfo['snr'])              ? (float) $rxInfo['snr']             : null;
 
         $shouldCreateDoorOpening = false;
-        if ($doorOpen !== null) {
+        $isDoorMonitoringEnabled = !empty($device['monitor_door_openings']);
+        if ($isDoorMonitoringEnabled && $doorOpen !== null) {
             $doorOpenInt = $doorOpen ? 1 : 0;
             $previousDoorOpen = isset($device['door_open']) ? (int) $device['door_open'] : 0;
             $shouldCreateDoorOpening = $doorOpenInt === 1 && $previousDoorOpen !== 1;

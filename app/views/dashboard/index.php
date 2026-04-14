@@ -68,8 +68,13 @@
     $rangeBadgeText = !$hasRecentTemperature ? 'Sem dados recentes' : ($isTempAlert ? 'Fora do intervalo' : 'Dentro do intervalo');
     $hasDoorState = !empty($device['door_updated_at']);
     $isDoorOpen = isset($device['door_open']) && (int) $device['door_open'] === 1;
-    $doorBadgeClass = !$hasDoorState ? 'secondary' : ($isDoorOpen ? 'warning' : 'success');
-    $doorBadgeText = !$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada');
+    $isDoorMonitoringEnabled = !empty($device['monitor_door_openings']);
+    $doorBadgeClass = !$isDoorMonitoringEnabled
+        ? 'secondary'
+        : (!$hasDoorState ? 'secondary' : ($isDoorOpen ? 'warning' : 'success'));
+    $doorBadgeText = !$isDoorMonitoringEnabled
+        ? 'Monitorizacao da porta desativada'
+        : (!$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada'));
     $isPaused = !empty($device['recordings_paused']);
     $pauseReason = htmlspecialchars($device['pause_reason'] ?? '');
     $pausedAt = !empty($device['paused_at']) ? date('Y-m-d H:i', strtotime($device['paused_at'])) : '';

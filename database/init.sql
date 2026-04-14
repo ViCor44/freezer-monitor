@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS devices (
     temp_min        DECIMAL(5,2)   NOT NULL DEFAULT -25.00,
     door_open       TINYINT(1)     NOT NULL DEFAULT 0,
     door_updated_at DATETIME       DEFAULT NULL,
+    monitor_door_openings TINYINT(1) NOT NULL DEFAULT 1,
     active          TINYINT(1)     NOT NULL DEFAULT 1,
     last_seen_at    DATETIME       DEFAULT NULL,
     created_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,

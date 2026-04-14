@@ -400,6 +400,7 @@ class DashboardController {
 
         $hasDoorState = !empty($device['door_updated_at']);
         $isDoorOpen = isset($device['door_open']) && (int) $device['door_open'] === 1;
+        $isDoorMonitoringEnabled = !empty($device['monitor_door_openings']);
 
         return [
             'id' => (int) $device['id'],
@@ -409,8 +410,12 @@ class DashboardController {
             'range_badge_class' => !$hasRecentTemperature ? 'secondary' : ($isTempAlert ? 'danger' : 'success'),
             'range_badge_text' => !$hasRecentTemperature ? 'Sem dados recentes' : ($isTempAlert ? 'Fora do intervalo' : 'Dentro do intervalo'),
             'has_door_state' => $hasDoorState,
-            'door_badge_class' => !$hasDoorState ? 'secondary' : ($isDoorOpen ? 'warning' : 'success'),
-            'door_badge_text' => !$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada'),
+            'door_badge_class' => !$isDoorMonitoringEnabled
+                ? 'secondary'
+                : (!$hasDoorState ? 'secondary' : ($isDoorOpen ? 'warning' : 'success')),
+            'door_badge_text' => !$isDoorMonitoringEnabled
+                ? 'Monitorizacao da porta desativada'
+                : (!$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada')),
             'last_seen' => $lastSeen,
             'last_seen_text' => $lastSeen ? date('Y-m-d H:i', strtotime($lastSeen)) : 'N/A',
             'recordings_paused' => !empty($device['recordings_paused']),

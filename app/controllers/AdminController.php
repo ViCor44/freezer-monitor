@@ -84,9 +84,10 @@ class AdminController {
         $location = trim($_POST['location'] ?? '');
         $tempMax  = (float) ($_POST['temp_max'] ?? TEMP_MAX);
         $tempMin  = (float) ($_POST['temp_min'] ?? TEMP_MIN);
+        $monitorDoorOpenings = isset($_POST['monitor_door_openings']) ? 1 : 0;
 
         if ($name && $devEui) {
-            $this->deviceModel->create($name, $devEui, $location, $tempMax, $tempMin);
+            $this->deviceModel->create($name, $devEui, $location, $tempMax, $tempMin, $monitorDoorOpenings);
         }
 
         header('Location: ' . BASE_URL . '/admin/devices');
@@ -103,9 +104,10 @@ class AdminController {
         $tempMax  = (float) ($_POST['temp_max'] ?? TEMP_MAX);
         $tempMin  = (float) ($_POST['temp_min'] ?? TEMP_MIN);
         $active   = (int) ($_POST['active'] ?? 0);
+        $monitorDoorOpenings = isset($_POST['monitor_door_openings']) ? 1 : 0;
 
         if ($id && $name) {
-            $this->deviceModel->update($id, $name, $location, $tempMax, $tempMin, $active);
+            $this->deviceModel->update($id, $name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings);
         }
 
         header('Location: ' . BASE_URL . '/admin/devices');

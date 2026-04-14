@@ -132,19 +132,34 @@ class Device {
         return $stmt->fetch();
     }
 
-    public function create(string $name, string $devEui, string $location = '', float $tempMax = TEMP_MAX, float $tempMin = TEMP_MIN): int {
+    public function create(
+        string $name,
+        string $devEui,
+        string $location = '',
+        float $tempMax = TEMP_MAX,
+        float $tempMin = TEMP_MIN,
+        int $monitorDoorOpenings = 1
+    ): int {
         $stmt = $this->db->prepare(
-            'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min) VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings) VALUES (?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin]);
+        $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings]);
         return (int) $this->db->lastInsertId();
     }
 
-    public function update(int $id, string $name, string $location, float $tempMax, float $tempMin, int $active): bool {
+    public function update(
+        int $id,
+        string $name,
+        string $location,
+        float $tempMax,
+        float $tempMin,
+        int $active,
+        int $monitorDoorOpenings
+    ): bool {
         $stmt = $this->db->prepare(
-            'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ? WHERE id = ?'
+            'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ? WHERE id = ?'
         );
-        return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $id]);
+        return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $id]);
     }
 
     public function updateLastSeen(int $id): bool {
