@@ -81,7 +81,13 @@
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="fw-semibold device-name"><i class="bi bi-cpu me-2"></i><?= htmlspecialchars($device['name']) ?></span>
                     <span class="badge device-online-badge bg-<?= $isOnline ? 'success' : 'secondary' ?>"><?= $isOnline ? 'Online' : 'Offline' ?></span>
+                    
                 </div>
+                <?php if (!empty($device['location'])): ?>
+                    <div class="text-muted" style="font-size: 0.7rem; margin-left: 28px; line-height: 1;">
+                        <?= htmlspecialchars($device['location']) ?>
+                    </div>
+                <?php endif; ?>
                 <div class="d-flex justify-content-between align-items-end">
                     <div>
                         <div class="text-muted small">Temperatura</div>

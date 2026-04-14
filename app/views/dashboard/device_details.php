@@ -17,6 +17,11 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
             Historico - <?= htmlspecialchars($device['name']) ?>
             <span class="badge bg-<?= $isOnline ? 'success' : 'secondary' ?> ms-2"><?= $isOnline ? 'Online' : 'Offline' ?></span>
         </h5>
+        <?php if (!empty($device['location'])): ?>
+            <div class="text-muted" style="font-size: 0.7rem; margin-left: 28px; line-height: 1;">
+                <?= htmlspecialchars($device['location']) ?>
+            </div>
+        <?php endif; ?>
         <div class="text-muted small">
             Ultima comunicacao: <?= $lastSeen ? htmlspecialchars(date('Y-m-d H:i', strtotime($lastSeen))) : 'N/A' ?>
         </div>
@@ -382,14 +387,29 @@ document.addEventListener('DOMContentLoaded', function () {
     setInterval(pollLastReading, 5000);
     pollLastReading();
 
-    // Inicializa botão ativo e carrega gráfico ao abrir a página
-    periodButtons.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-    const defaultBtn = periodButtons.querySelector('button[data-period="24h"]');
-    if (defaultBtn) defaultBtn.classList.add('active');
-    currentPeriod = '24h';
-    refreshChart();
-    window.addEventListener('resize', adjustHistoryViewport);
+    // --- INICIALIZAÇÃO AUTOMÁTICA ---
+        
+        // 1. Garantir que o período inicial é 24h e o botão está visualmente ativo
+        currentPeriod = '24h';
+        periodButtons.querySelectorAll('button').forEach(b => {
+            if(b.dataset.period === '24h') b.classList.add('active');
+            else b.classList.remove('active');
+        });
 
+        // 2. Função para a carga inicial "limpa"
+        async function initialLoad() {
+            // Pequeno delay para garantir que bibliotecas externas (Chart.js) estão prontas
+            setTimeout(async () => {
+                await refreshChart();
+            }, 100);
+        }
+
+        // Executar carga inicial
+        initialLoad();
+
+        // Manter o redimensionamento ativo
+        window.addEventListener('resize', adjustHistoryViewport);
+    
     // Modal para notas no gráfico
     const noteModal = new bootstrap.Modal(document.getElementById('noteModal'));
     const noteText = document.getElementById('noteText');
