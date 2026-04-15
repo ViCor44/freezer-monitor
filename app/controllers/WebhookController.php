@@ -126,8 +126,11 @@ class WebhookController {
             exit;
         }
 
+        $calibrationOffset = isset($device['calibration_offset']) ? (float) $device['calibration_offset'] : 0.0;
+        $adjustedTemperature = $temperature + $calibrationOffset;
+
         $readingId = $this->readingModel->create(
-            $device['id'], $temperature, $humidity, $battery, $rssi, $snr
+            $device['id'], $adjustedTemperature, $humidity, $battery, $rssi, $snr
         );
 
         if ($shouldCreateDoorOpening) {
@@ -135,7 +138,7 @@ class WebhookController {
         }
 
         // Auto-generate alerts
-        $this->checkAlerts($device, $temperature);
+        $this->checkAlerts($device, $adjustedTemperature);
 
         header('Content-Type: application/json');
         echo json_encode(['status' => 'ok', 'reading_id' => $readingId]);

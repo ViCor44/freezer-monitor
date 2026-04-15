@@ -13,6 +13,7 @@ class Device {
     private $db;
     private $table = 'devices';
     private ?bool $hasMonitorDoorOpeningsColumn = null;
+    private ?bool $hasCalibrationOffsetColumn = null;
 
     public function __construct($db) {  // ← Recebe $db
         $this->db = $db;
@@ -139,13 +140,27 @@ class Device {
         string $location = '',
         float $tempMax = TEMP_MAX,
         float $tempMin = TEMP_MIN,
-        int $monitorDoorOpenings = 1
+        int $monitorDoorOpenings = 1,
+        float $calibrationOffset = 0.0
     ): int {
-        if ($this->supportsDoorMonitoringOption()) {
+        $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
+        $supportsCalibrationOffset = $this->supportsCalibrationOffset();
+
+        if ($supportsDoorMonitoring && $supportsCalibrationOffset) {
+            $stmt = $this->db->prepare(
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings, calibration_offset) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings, $calibrationOffset]);
+        } elseif ($supportsDoorMonitoring) {
             $stmt = $this->db->prepare(
                 'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings) VALUES (?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings]);
+        } elseif ($supportsCalibrationOffset) {
+            $stmt = $this->db->prepare(
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, calibration_offset) VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $calibrationOffset]);
         } else {
             $stmt = $this->db->prepare(
                 'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min) VALUES (?, ?, ?, ?, ?)'
@@ -163,13 +178,31 @@ class Device {
         float $tempMax,
         float $tempMin,
         int $active,
-        int $monitorDoorOpenings
+        int $monitorDoorOpenings,
+        float $calibrationOffset = 0.0
     ): bool {
-        if ($this->supportsDoorMonitoringOption()) {
+        $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
+        $supportsCalibrationOffset = $this->supportsCalibrationOffset();
+
+        if ($supportsDoorMonitoring && $supportsCalibrationOffset) {
+            $stmt = $this->db->prepare(
+                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ?, calibration_offset = ? WHERE id = ?'
+            );
+            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $id]);
+        }
+
+        if ($supportsDoorMonitoring) {
             $stmt = $this->db->prepare(
                 'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ? WHERE id = ?'
             );
             return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $id]);
+        }
+
+        if ($supportsCalibrationOffset) {
+            $stmt = $this->db->prepare(
+                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, calibration_offset = ? WHERE id = ?'
+            );
+            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $calibrationOffset, $id]);
         }
 
         $stmt = $this->db->prepare(
@@ -191,6 +224,21 @@ class Device {
         }
 
         return $this->hasMonitorDoorOpeningsColumn;
+    }
+
+    private function supportsCalibrationOffset(): bool {
+        if ($this->hasCalibrationOffsetColumn !== null) {
+            return $this->hasCalibrationOffsetColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'calibration_offset'");
+            $this->hasCalibrationOffsetColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $this->hasCalibrationOffsetColumn = false;
+        }
+
+        return $this->hasCalibrationOffsetColumn;
     }
 
     public function updateLastSeen(int $id): bool {
