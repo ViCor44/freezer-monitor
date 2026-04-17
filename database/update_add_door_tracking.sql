@@ -1,8 +1,8 @@
 USE freezer_monitor;
 
 ALTER TABLE devices
-    ADD COLUMN door_open TINYINT(1) NOT NULL DEFAULT 0 AFTER temp_min,
-    ADD COLUMN door_updated_at DATETIME NULL AFTER door_open;
+    ADD COLUMN IF NOT EXISTS door_open TINYINT(1) NOT NULL DEFAULT 0 AFTER temp_min,
+    ADD COLUMN IF NOT EXISTS door_updated_at DATETIME NULL AFTER door_open;
 
 CREATE TABLE IF NOT EXISTS door_openings (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

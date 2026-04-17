@@ -25,6 +25,8 @@ require $root . '/app/models/Device.php';
 require $root . '/app/models/TemperatureReading.php';
 require $root . '/app/models/Alert.php';
 require $root . '/app/models/Note.php';
+require $root . '/app/models/RecordingPause.php';
+require $root . '/app/models/DoorOpening.php';
 require $root . '/app/controllers/AuthController.php';
 require $root . '/app/controllers/DashboardController.php';
 require $root . '/app/controllers/AdminController.php';
@@ -87,6 +89,7 @@ $routes = [
         '/dashboard'           => ['DashboardController', 'index'],
         '/dashboard/device'    => ['DashboardController', 'deviceDetails'],
         '/dashboard/chart'     => ['DashboardController', 'chartData'],
+        '/dashboard/door-chart'=> ['DashboardController', 'doorChartData'],
         '/dashboard/get-notes' => ['DashboardController', 'getNotes'],
         '/dashboard/devices/live' => ['DashboardController', 'devicesLiveData'],
         '/admin/users'         => ['AdminController',     'users'],
@@ -98,6 +101,8 @@ $routes = [
         '/register'                    => ['AuthController',   'register'],
         '/logout'                      => ['AuthController',   'logout'],
         '/dashboard/save-note'         => ['DashboardController', 'saveNote'],
+        '/dashboard/devices/pause'      => ['DashboardController', 'pauseDevice'],
+        '/dashboard/devices/resume'     => ['DashboardController', 'resumeDevice'],
         '/admin/users/approve'         => ['AdminController',  'approveUser'],
         '/admin/users/revoke'          => ['AdminController',  'revokeUser'],
         '/admin/users/delete'          => ['AdminController',  'deleteUser'],

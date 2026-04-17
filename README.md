@@ -9,6 +9,7 @@ This project monitors freezer temperature and creates alerts when readings are o
 2. Create the database and tables:
 	- Open phpMyAdmin and import `database/init.sql`
 	- If your database already exists from a previous version, also run `database/update_add_door_tracking.sql`
+	- For existing installations, also run `database/update_add_calibration_factor.sql`
 3. Configure environment variables in `.env`:
 	- `DB_HOST=localhost`
 	- `DB_NAME=freezer_monitor`

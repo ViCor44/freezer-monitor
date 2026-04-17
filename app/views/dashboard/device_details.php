@@ -17,6 +17,11 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
             Historico - <?= htmlspecialchars($device['name']) ?>
             <span class="badge bg-<?= $isOnline ? 'success' : 'secondary' ?> ms-2"><?= $isOnline ? 'Online' : 'Offline' ?></span>
         </h5>
+        <?php if (!empty($device['location'])): ?>
+            <div class="text-muted" style="font-size: 0.7rem; margin-left: 28px; line-height: 1;">
+                <?= htmlspecialchars($device['location']) ?>
+            </div>
+        <?php endif; ?>
         <div class="text-muted small">
             Ultima comunicacao: <?= $lastSeen ? htmlspecialchars(date('Y-m-d H:i', strtotime($lastSeen))) : 'N/A' ?>
         </div>
@@ -104,7 +109,13 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                         </div>
                     </div>
                     <canvas id="selected-device-chart" height="120"></canvas>
-
+                    <!-- Gráfico de aberturas de porta -->
+                    <div class="mt-2">
+                        <div class="text-muted small mb-1"><i class="bi bi-door-open me-1"></i>Aberturas de porta</div>
+                        <div style="position:relative; height:70px;">
+                            <canvas id="door-openings-chart"></canvas>
+                        </div>
+                    </div>
                     <?php if (!empty($deviceNotes)): ?>
                     <div class="mt-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -126,6 +137,55 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                                         <td class="text-nowrap small"><?= htmlspecialchars(date('Y-m-d H:i', strtotime($note['noted_at']))) ?></td>
                                         <td class="small" style="white-space:pre-wrap"><?= htmlspecialchars($note['note_text']) ?></td>
                                         <td class="text-muted small text-nowrap"><?= htmlspecialchars(date('Y-m-d H:i', strtotime($note['created_at']))) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($devicePauses)): ?>
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold small"><i class="bi bi-pause-circle me-1 text-danger"></i>Histórico de pausas</span>
+                            <span class="badge bg-danger"><?= count($devicePauses) ?></span>
+                        </div>
+                        <div class="table-responsive" style="max-height: <?= count($devicePauses) > 7 ? '210px' : 'none' ?>; overflow-y: <?= count($devicePauses) > 7 ? 'auto' : 'visible' ?>;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width:135px">Pausado em</th>
+                                        <th>Motivo</th>
+                                        <th style="width:135px">Retomado em</th>
+                                        <th style="width:110px">Duração</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($devicePauses as $pause): ?>
+                                    <?php
+                                    $pausedAt   = $pause['paused_at']  ? date('Y-m-d H:i', strtotime($pause['paused_at']))  : '--';
+                                    $resumedAt  = $pause['resumed_at'] ? date('Y-m-d H:i', strtotime($pause['resumed_at'])) : null;
+                                    $duration   = '';
+                                    if ($pause['paused_at']) {
+                                        $end = $pause['resumed_at'] ? strtotime($pause['resumed_at']) : time();
+                                        $secs = max(0, $end - strtotime($pause['paused_at']));
+                                        $h = floor($secs / 3600);
+                                        $m = floor(($secs % 3600) / 60);
+                                        $duration = $h > 0 ? "{$h}h {$m}m" : "{$m}m";
+                                    }
+                                    ?>
+                                    <tr class="<?= $resumedAt === null ? 'table-danger' : '' ?>">
+                                        <td class="text-nowrap small"><?= $pausedAt ?></td>
+                                        <td class="small" style="white-space:pre-wrap"><?= htmlspecialchars($pause['reason']) ?></td>
+                                        <td class="text-nowrap small">
+                                            <?php if ($resumedAt): ?>
+                                                <?= $resumedAt ?>
+                                            <?php else: ?>
+                                                <span class="badge bg-danger">Ativo</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="small text-muted"><?= $duration ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                                 </tbody>
@@ -314,10 +374,87 @@ document.addEventListener('DOMContentLoaded', function () {
         historyTableWrap.style.maxHeight = `${targetHeight}px`;
     }
 
-    async function refreshChart() {
-        await loadChart(deviceId, currentPeriod, null, {
-            canvasId: 'selected-device-chart',
+    let _doorChart = null;
+
+    async function loadDoorChart(period, options = {}) {
+        const params = new URLSearchParams();
+        params.set('device_id', String(deviceId));
+        if (options.from && options.to) {
+            params.set('from', options.from);
+            params.set('to', options.to);
+        } else {
+            params.set('period', period);
+        }
+
+        let data;
+        try {
+            const res = await fetch(`${window.BASE_URL || ''}/dashboard/door-chart?${params.toString()}`);
+            if (!res.ok) return;
+            data = await res.json();
+        } catch (e) { return; }
+
+        const canvas = document.getElementById('door-openings-chart');
+        if (!canvas) return;
+
+        const labels = (data.labels || []).map(l => {
+            const d = new Date(l);
+            if (period === '24h') return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            if (period === 'custom' && options.from && options.to) {
+                const rangeMs = new Date(options.to) - new Date(options.from);
+                if (rangeMs <= 3 * 86400 * 1000) return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                return d.toLocaleDateString([], {month: 'short', day: 'numeric'});
+            }
+            return d.toLocaleDateString([], {month: 'short', day: 'numeric'});
         });
+
+        if (_doorChart) { _doorChart.destroy(); }
+
+        _doorChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Aberturas',
+                    data: data.counts || [],
+                    backgroundColor: 'rgba(255, 193, 7, 0.6)',
+                    borderColor: 'rgba(255, 152, 0, 0.8)',
+                    borderWidth: 1,
+                    borderRadius: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: 0 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (ctx) => ctx[0]?.label ?? '',
+                            label: (ctx) => `Aberturas: ${ctx.parsed.y}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+                    },
+                    y: {
+                        min: 0,
+                        ticks: { stepSize: 1, maxTicksLimit: 3, font: { size: 10 } },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    }
+                }
+            }
+        });
+    }
+
+    async function refreshChart() {
+        await Promise.all([
+            loadChart(deviceId, currentPeriod, null, { canvasId: 'selected-device-chart' }),
+            loadDoorChart(currentPeriod),
+        ]);
 
         const historyData = await fetchHistoryData(currentPeriod);
         renderHistoryTable(historyData);
@@ -338,11 +475,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        await loadChart(deviceId, 'custom', null, {
-            canvasId: 'selected-device-chart',
-            from: fromInput.value,
-            to: toInput.value,
-        });
+        await Promise.all([
+            loadChart(deviceId, 'custom', null, {
+                canvasId: 'selected-device-chart',
+                from: fromInput.value,
+                to: toInput.value,
+            }),
+            loadDoorChart('custom', { from: fromInput.value, to: toInput.value }),
+        ]);
 
         const historyData = await fetchHistoryData('custom');
         renderHistoryTable(historyData);
@@ -382,14 +522,29 @@ document.addEventListener('DOMContentLoaded', function () {
     setInterval(pollLastReading, 5000);
     pollLastReading();
 
-    // Inicializa botão ativo e carrega gráfico ao abrir a página
-    periodButtons.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-    const defaultBtn = periodButtons.querySelector('button[data-period="24h"]');
-    if (defaultBtn) defaultBtn.classList.add('active');
-    currentPeriod = '24h';
-    refreshChart();
-    window.addEventListener('resize', adjustHistoryViewport);
+    // --- INICIALIZAÇÃO AUTOMÁTICA ---
+        
+        // 1. Garantir que o período inicial é 24h e o botão está visualmente ativo
+        currentPeriod = '24h';
+        periodButtons.querySelectorAll('button').forEach(b => {
+            if(b.dataset.period === '24h') b.classList.add('active');
+            else b.classList.remove('active');
+        });
 
+        // 2. Função para a carga inicial "limpa"
+        async function initialLoad() {
+            // Pequeno delay para garantir que bibliotecas externas (Chart.js) estão prontas
+            setTimeout(async () => {
+                await refreshChart();
+            }, 100);
+        }
+
+        // Executar carga inicial
+        initialLoad();
+
+        // Manter o redimensionamento ativo
+        window.addEventListener('resize', adjustHistoryViewport);
+    
     // Modal para notas no gráfico
     const noteModal = new bootstrap.Modal(document.getElementById('noteModal'));
     const noteText = document.getElementById('noteText');

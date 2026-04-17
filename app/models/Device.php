@@ -12,13 +12,15 @@ if (!defined('TEMP_MIN')) {
 class Device {
     private $db;
     private $table = 'devices';
+    private ?bool $hasMonitorDoorOpeningsColumn = null;
+    private ?bool $hasCalibrationOffsetColumn = null;
 
     public function __construct($db) {  // ← Recebe $db
         $this->db = $db;
     }
 
     public function getAll() {
-        $sql = "SELECT d.*, 
+        $sql = "SELECT d.*,
                        (
                            SELECT r.temperature
                            FROM temperature_readings r
@@ -32,7 +34,7 @@ class Device {
                            WHERE r.device_id = d.id
                            ORDER BY r.recorded_at DESC, r.id DESC
                            LIMIT 1
-                           ) AS last_reading,
+                       ) AS last_reading,
                        TIMESTAMPDIFF(
                            SECOND,
                            (
@@ -57,8 +59,12 @@ class Device {
                                )
                            ),
                            NOW()
-                       ) AS seconds_since_seen
+                       ) AS seconds_since_seen,
+                       rp.reason      AS pause_reason,
+                       rp.paused_at   AS paused_at
                 FROM {$this->table} d
+                LEFT JOIN recording_pauses rp
+                       ON rp.device_id = d.id AND rp.resumed_at IS NULL
                 ORDER BY d.name";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
@@ -128,19 +134,111 @@ class Device {
         return $stmt->fetch();
     }
 
-    public function create(string $name, string $devEui, string $location = '', float $tempMax = TEMP_MAX, float $tempMin = TEMP_MIN): int {
-        $stmt = $this->db->prepare(
-            'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min) VALUES (?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin]);
+    public function create(
+        string $name,
+        string $devEui,
+        string $location = '',
+        float $tempMax = TEMP_MAX,
+        float $tempMin = TEMP_MIN,
+        int $monitorDoorOpenings = 1,
+        float $calibrationOffset = 0.0
+    ): int {
+        $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
+        $supportsCalibrationOffset = $this->supportsCalibrationOffset();
+
+        if ($supportsDoorMonitoring && $supportsCalibrationOffset) {
+            $stmt = $this->db->prepare(
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings, calibration_offset) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings, $calibrationOffset]);
+        } elseif ($supportsDoorMonitoring) {
+            $stmt = $this->db->prepare(
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings) VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings]);
+        } elseif ($supportsCalibrationOffset) {
+            $stmt = $this->db->prepare(
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, calibration_offset) VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $calibrationOffset]);
+        } else {
+            $stmt = $this->db->prepare(
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min) VALUES (?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin]);
+        }
+
         return (int) $this->db->lastInsertId();
     }
 
-    public function update(int $id, string $name, string $location, float $tempMax, float $tempMin, int $active): bool {
+    public function update(
+        int $id,
+        string $name,
+        string $location,
+        float $tempMax,
+        float $tempMin,
+        int $active,
+        int $monitorDoorOpenings,
+        float $calibrationOffset = 0.0
+    ): bool {
+        $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
+        $supportsCalibrationOffset = $this->supportsCalibrationOffset();
+
+        if ($supportsDoorMonitoring && $supportsCalibrationOffset) {
+            $stmt = $this->db->prepare(
+                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ?, calibration_offset = ? WHERE id = ?'
+            );
+            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $id]);
+        }
+
+        if ($supportsDoorMonitoring) {
+            $stmt = $this->db->prepare(
+                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ? WHERE id = ?'
+            );
+            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $id]);
+        }
+
+        if ($supportsCalibrationOffset) {
+            $stmt = $this->db->prepare(
+                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, calibration_offset = ? WHERE id = ?'
+            );
+            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $calibrationOffset, $id]);
+        }
+
         $stmt = $this->db->prepare(
             'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ? WHERE id = ?'
         );
         return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $id]);
+    }
+
+    private function supportsDoorMonitoringOption(): bool {
+        if ($this->hasMonitorDoorOpeningsColumn !== null) {
+            return $this->hasMonitorDoorOpeningsColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'monitor_door_openings'");
+            $this->hasMonitorDoorOpeningsColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $this->hasMonitorDoorOpeningsColumn = false;
+        }
+
+        return $this->hasMonitorDoorOpeningsColumn;
+    }
+
+    private function supportsCalibrationOffset(): bool {
+        if ($this->hasCalibrationOffsetColumn !== null) {
+            return $this->hasCalibrationOffsetColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'calibration_offset'");
+            $this->hasCalibrationOffsetColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $this->hasCalibrationOffsetColumn = false;
+        }
+
+        return $this->hasCalibrationOffsetColumn;
     }
 
     public function updateLastSeen(int $id): bool {
@@ -153,6 +251,20 @@ class Device {
             'UPDATE devices SET door_open = ?, door_updated_at = NOW() WHERE id = ?'
         );
         return $stmt->execute([$doorOpen, $id]);
+    }
+
+    public function pauseRecordings(int $id): bool {
+        $stmt = $this->db->prepare(
+            'UPDATE devices SET recordings_paused = 1 WHERE id = ?'
+        );
+        return $stmt->execute([$id]);
+    }
+
+    public function resumeRecordings(int $id): bool {
+        $stmt = $this->db->prepare(
+            'UPDATE devices SET recordings_paused = 0 WHERE id = ?'
+        );
+        return $stmt->execute([$id]);
     }
 
     public function delete(int $id): bool {

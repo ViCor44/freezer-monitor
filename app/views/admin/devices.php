@@ -20,6 +20,8 @@
                     <th>Localizacao</th>
                     <th>Max °C</th>
                     <th>Min °C</th>
+                    <th>Calibracao °C</th>
+                    <th>Monitor porta</th>
                     <th>Ultima comunicacao</th>
                     <th>Estado</th>
                     <th class="text-end">Acoes</th>
@@ -33,6 +35,12 @@
                     <td><?= htmlspecialchars($d['location'] ?? '—') ?></td>
                     <td><?= number_format((float)$d['temp_max'], 1) ?></td>
                     <td><?= number_format((float)$d['temp_min'], 1) ?></td>
+                    <td><?= number_format((float)($d['calibration_offset'] ?? 0), 1) ?></td>
+                    <td>
+                        <span class="badge bg-<?= !empty($d['monitor_door_openings']) ? 'info' : 'secondary' ?>">
+                            <?= !empty($d['monitor_door_openings']) ? 'Ativa' : 'Desativada' ?>
+                        </span>
+                    </td>
                     <td><?= $d['last_seen_at'] ? date('Y-m-d H:i', strtotime($d['last_seen_at'])) : '—' ?></td>
                     <td><span class="badge bg-<?= $d['active'] ? 'success' : 'secondary' ?>\"><?= $d['active'] ? 'Ativo' : 'Inativo' ?></span></td>
                     <td class="text-end">
@@ -43,6 +51,8 @@
                             data-location="<?= htmlspecialchars($d['location'] ?? '') ?>"
                             data-temp-max="<?= $d['temp_max'] ?>"
                             data-temp-min="<?= $d['temp_min'] ?>"
+                            data-calibration-offset="<?= (float) ($d['calibration_offset'] ?? 0) ?>"
+                            data-monitor-door="<?= (int) ($d['monitor_door_openings'] ?? 1) ?>"
                             data-active="<?= $d['active'] ?>">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -75,6 +85,17 @@
                         <div class="col"><label class="form-label">Max °C</label><input type="number" name="temp_max" class="form-control" value="<?= TEMP_MAX ?>" step="0.1"></div>
                         <div class="col"><label class="form-label">Min °C</label><input type="number" name="temp_min" class="form-control" value="<?= TEMP_MIN ?>" step="0.1"></div>
                     </div>
+                    <div class="mt-3">
+                        <label class="form-label">Fator de calibracao (°C)</label>
+                        <input type="number" name="calibration_offset" class="form-control" value="0" step="0.1">
+                        <div class="form-text">Use valores positivos para somar e negativos para subtrair.</div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="monitor_door_openings" value="1" id="addDeviceMonitorDoor" checked>
+                            <label class="form-check-label" for="addDeviceMonitorDoor">Monitorizacao da abertura de porta</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Adicionar</button></div>
             </form>
@@ -98,6 +119,15 @@
                         <div class="col"><label class="form-label">Min °C</label><input type="number" name="temp_min" id="editDeviceTempMin" class="form-control" step="0.1"></div>
                     </div>
                     <div class="mt-3">
+                        <label class="form-label">Fator de calibracao (°C)</label>
+                        <input type="number" name="calibration_offset" id="editDeviceCalibrationOffset" class="form-control" step="0.1">
+                        <div class="form-text">Use valores positivos para somar e negativos para subtrair.</div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="monitor_door_openings" id="editDeviceMonitorDoor" value="1">
+                            <label class="form-check-label" for="editDeviceMonitorDoor">Monitorizacao da abertura de porta</label>
+                        </div>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="active" id="editDeviceActive" value="1">
                             <label class="form-check-label" for="editDeviceActive">Ativo</label>
@@ -120,6 +150,8 @@ if (editModal) {
         document.getElementById('editDeviceLocation').value = btn.dataset.location;
         document.getElementById('editDeviceTempMax').value  = btn.dataset.tempMax;
         document.getElementById('editDeviceTempMin').value  = btn.dataset.tempMin;
+        document.getElementById('editDeviceCalibrationOffset').value = btn.dataset.calibrationOffset ?? '0';
+        document.getElementById('editDeviceMonitorDoor').checked = btn.dataset.monitorDoor === '1';
         document.getElementById('editDeviceActive').checked = btn.dataset.active === '1';
     });
 }

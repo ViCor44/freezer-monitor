@@ -74,6 +74,14 @@ class WebhookController {
             exit;
         }
 
+        // Registos pausados: atualiza last_seen mas nao guarda temperaturas.
+        if (!empty($device['recordings_paused'])) {
+            $this->deviceModel->updateLastSeen((int) $device['id']);
+            http_response_code(202);
+            echo json_encode(['status' => 'recordings_paused']);
+            exit;
+        }
+
         // Mark the device as online as soon as any uplink is received.
         $this->deviceModel->updateLastSeen((int) $device['id']);
 
@@ -99,7 +107,8 @@ class WebhookController {
         $snr         = isset($rxInfo['snr'])              ? (float) $rxInfo['snr']             : null;
 
         $shouldCreateDoorOpening = false;
-        if ($doorOpen !== null) {
+        $isDoorMonitoringEnabled = !empty($device['monitor_door_openings']);
+        if ($isDoorMonitoringEnabled && $doorOpen !== null) {
             $doorOpenInt = $doorOpen ? 1 : 0;
             $previousDoorOpen = isset($device['door_open']) ? (int) $device['door_open'] : 0;
             $shouldCreateDoorOpening = $doorOpenInt === 1 && $previousDoorOpen !== 1;
@@ -117,8 +126,11 @@ class WebhookController {
             exit;
         }
 
+        $calibrationOffset = isset($device['calibration_offset']) ? (float) $device['calibration_offset'] : 0.0;
+        $adjustedTemperature = $temperature + $calibrationOffset;
+
         $readingId = $this->readingModel->create(
-            $device['id'], $temperature, $humidity, $battery, $rssi, $snr
+            $device['id'], $adjustedTemperature, $humidity, $battery, $rssi, $snr
         );
 
         if ($shouldCreateDoorOpening) {
@@ -126,7 +138,7 @@ class WebhookController {
         }
 
         // Auto-generate alerts
-        $this->checkAlerts($device, $temperature);
+        $this->checkAlerts($device, $adjustedTemperature);
 
         header('Content-Type: application/json');
         echo json_encode(['status' => 'ok', 'reading_id' => $readingId]);

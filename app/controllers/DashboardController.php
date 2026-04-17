@@ -6,6 +6,8 @@ class DashboardController {
     private $readingModel;
     private $alertModel;
     private $noteModel;
+    private $pauseModel;
+    private $doorOpeningModel;
 
     public function __construct($db = null) {
         if ($db === null) {
@@ -15,11 +17,12 @@ class DashboardController {
         
         $this->db = $db;
         
-        // ✅ PASSAR $db AO MODELO
         $this->deviceModel = new Device($db);
         $this->readingModel = new TemperatureReading($db);
         $this->alertModel = new Alert($db);
         $this->noteModel = new Note($db);
+        $this->pauseModel = new RecordingPause($db);
+        $this->doorOpeningModel = new DoorOpening($db);
     }
 
     public function index() {
@@ -57,6 +60,8 @@ class DashboardController {
             '1970-01-01 00:00:00',
             '2099-12-31 23:59:59'
         );
+
+        $devicePauses = $this->pauseModel->getByDevice($deviceId);
 
         require ROOT . '/app/views/dashboard/device_details.php';
     }
@@ -135,6 +140,88 @@ class DashboardController {
             'temp_max' => isset($device['temp_max']) ? (float) $device['temp_max'] : TEMP_MAX,
             'temp_min' => isset($device['temp_min']) ? (float) $device['temp_min'] : TEMP_MIN,
         ]);
+    }
+
+    public function doorChartData(): void {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            exit;
+        }
+
+        $deviceId = (int) ($_GET['device_id'] ?? 0);
+        if ($deviceId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Dispositivo invalido']);
+            exit;
+        }
+
+        $device = $this->deviceModel->findById($deviceId);
+        if (!$device) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Dispositivo nao encontrado']);
+            exit;
+        }
+
+        $period = $_GET['period'] ?? '24h';
+        $from   = $_GET['from'] ?? '';
+        $to     = $_GET['to']   ?? '';
+
+        if ($from !== '' && $to !== '') {
+            $fromTs = strtotime($from);
+            $toTs   = strtotime($to);
+            if ($fromTs === false || $toTs === false || $fromTs > $toTs) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Intervalo invalido']);
+                exit;
+            }
+            $rows       = $this->doorOpeningModel->getByRange($deviceId, date('Y-m-d H:i:s', $fromTs), date('Y-m-d H:i:s', $toTs));
+            $bucketSecs = (($toTs - $fromTs) / 86400) <= 3 ? 3600 : 86400;
+            $startTs    = $fromTs;
+            $endTs      = $toTs;
+        } else {
+            switch ($period) {
+                case '7d':
+                    $rows = $this->doorOpeningModel->getLast7Days($deviceId);
+                    $bucketSecs = 86400;
+                    $startTs    = strtotime('-7 days');
+                    $endTs      = time();
+                    break;
+                case '30d':
+                    $rows = $this->doorOpeningModel->getLast30Days($deviceId);
+                    $bucketSecs = 86400;
+                    $startTs    = strtotime('-30 days');
+                    $endTs      = time();
+                    break;
+                default: // 24h
+                    $rows = $this->doorOpeningModel->getLast24Hours($deviceId);
+                    $bucketSecs = 3600;
+                    $startTs    = strtotime('-24 hours');
+                    $endTs      = time();
+                    break;
+            }
+        }
+
+        // Count openings per bucket
+        $bucketCounts = [];
+        foreach ($rows as $row) {
+            $t   = strtotime($row['opened_at']);
+            $key = (int) (floor($t / $bucketSecs) * $bucketSecs);
+            $bucketCounts[$key] = ($bucketCounts[$key] ?? 0) + 1;
+        }
+
+        // Generate all buckets in range
+        $labels = [];
+        $counts = [];
+        $first  = (int) (floor($startTs / $bucketSecs) * $bucketSecs);
+        $last   = (int) (floor($endTs   / $bucketSecs) * $bucketSecs);
+        for ($t = $first; $t <= $last; $t += $bucketSecs) {
+            $labels[] = date('Y-m-d H:i:s', $t);
+            $counts[] = $bucketCounts[$t] ?? 0;
+        }
+
+        echo json_encode(['labels' => $labels, 'counts' => $counts]);
     }
 
     public function saveNote(): void {
@@ -234,6 +321,63 @@ class DashboardController {
         ]);
     }
 
+    public function pauseDevice(): void {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            exit;
+        }
+
+        $deviceId = (int) ($_POST['device_id'] ?? 0);
+        $reason   = trim($_POST['reason'] ?? '');
+
+        if ($deviceId <= 0 || $reason === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de dispositivo ou motivo invalido']);
+            exit;
+        }
+
+        $device = $this->deviceModel->findById($deviceId);
+        if (!$device) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Dispositivo nao encontrado']);
+            exit;
+        }
+
+        $this->pauseModel->create($deviceId, $reason, (int) $_SESSION['user_id']);
+        $this->deviceModel->pauseRecordings($deviceId);
+        echo json_encode(['success' => true]);
+    }
+
+    public function resumeDevice(): void {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            exit;
+        }
+
+        $deviceId = (int) ($_POST['device_id'] ?? 0);
+
+        if ($deviceId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de dispositivo invalido']);
+            exit;
+        }
+
+        $device = $this->deviceModel->findById($deviceId);
+        if (!$device) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Dispositivo nao encontrado']);
+            exit;
+        }
+
+        $this->pauseModel->closeActive($deviceId);
+        $this->deviceModel->resumeRecordings($deviceId);
+        echo json_encode(['success' => true]);
+    }
+
     private function formatDeviceCardData(array $device): array {
         $lastSeen = $device['last_seen_at'] ?? $device['last_reading'] ?? null;
         $secondsSinceSeen = isset($device['seconds_since_seen']) ? (int) $device['seconds_since_seen'] : null;
@@ -256,6 +400,7 @@ class DashboardController {
 
         $hasDoorState = !empty($device['door_updated_at']);
         $isDoorOpen = isset($device['door_open']) && (int) $device['door_open'] === 1;
+        $isDoorMonitoringEnabled = !empty($device['monitor_door_openings']);
 
         return [
             'id' => (int) $device['id'],
@@ -265,10 +410,17 @@ class DashboardController {
             'range_badge_class' => !$hasRecentTemperature ? 'secondary' : ($isTempAlert ? 'danger' : 'success'),
             'range_badge_text' => !$hasRecentTemperature ? 'Sem dados recentes' : ($isTempAlert ? 'Fora do intervalo' : 'Dentro do intervalo'),
             'has_door_state' => $hasDoorState,
-            'door_badge_class' => !$hasDoorState ? 'secondary' : ($isDoorOpen ? 'warning' : 'success'),
-            'door_badge_text' => !$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada'),
+            'door_badge_class' => !$isDoorMonitoringEnabled
+                ? 'secondary'
+                : (!$hasDoorState ? 'secondary' : ($isDoorOpen ? 'warning' : 'success')),
+            'door_badge_text' => !$isDoorMonitoringEnabled
+                ? 'Monitorizacao da porta desativada'
+                : (!$hasDoorState ? 'Estado da porta desconhecido' : ($isDoorOpen ? 'Porta aberta' : 'Porta fechada')),
             'last_seen' => $lastSeen,
             'last_seen_text' => $lastSeen ? date('Y-m-d H:i', strtotime($lastSeen)) : 'N/A',
+            'recordings_paused' => !empty($device['recordings_paused']),
+            'pause_reason' => $device['pause_reason'] ?? null,
+            'paused_at' => $device['paused_at'] ?? null,
         ];
     }
 }
