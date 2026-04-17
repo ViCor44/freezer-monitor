@@ -39,7 +39,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Confirmar palavra-passe</label>
-                            <input type="password" name="password_confirm" class="form-control" required>
+                            <input type="password" name="confirm_password" class="form-control" required>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Registar</button>
                     </form>
