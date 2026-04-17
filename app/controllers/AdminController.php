@@ -38,8 +38,9 @@ class AdminController {
         Auth::requireAdmin();
         $this->verifyCsrf();
         $id = (int) ($_POST['id'] ?? 0);
+        $role = $_POST['role'] ?? ROLE_USER;
         if ($id) {
-            $this->userModel->approve($id);
+            $this->userModel->approve($id, $role);
         }
         header('Location: ' . BASE_URL . '/admin/users');
         exit;

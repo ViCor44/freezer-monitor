@@ -70,9 +70,13 @@ class User {
         return $this->create($name, $email, $password) > 0;
     }
 
-    public function approve(int $id): bool {
-        $stmt = $this->db->prepare('UPDATE users SET approved = 1 WHERE id = ?');
-        return $stmt->execute([$id]);
+    public function approve(int $id, string $role = ROLE_USER): bool {
+        if (!in_array($role, [ROLE_ADMIN, ROLE_USER], true)) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare('UPDATE users SET approved = 1, role = ? WHERE id = ?');
+        return $stmt->execute([$role, $id]);
     }
 
     public function revoke(int $id): bool {

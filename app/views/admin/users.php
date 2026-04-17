@@ -38,9 +38,13 @@
                     <td><?= date('Y-m-d', strtotime($user['created_at'])) ?></td>
                     <td class="text-end">
                         <?php if (!$user['approved']): ?>
-                        <form method="post" action="<?= BASE_URL ?>/admin/users/approve" class="d-inline">
+                        <form method="post" action="<?= BASE_URL ?>/admin/users/approve" class="d-inline-flex align-items-center gap-2">
                             <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
                             <input type="hidden" name="id" value="<?= $user['id'] ?>">
+                            <select name="role" class="form-select form-select-sm">
+                                <option value="<?= ROLE_USER ?>" selected>user</option>
+                                <option value="<?= ROLE_ADMIN ?>">admin</option>
+                            </select>
                             <button class="btn btn-sm btn-success"><i class="bi bi-check2"></i> Aprovar</button>
                         </form>
                         <?php else: ?>
