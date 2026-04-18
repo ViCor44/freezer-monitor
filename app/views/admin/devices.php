@@ -20,7 +20,7 @@
                     <th>Localizacao</th>
                     <th>Max °C</th>
                     <th>Min °C</th>
-                    <th>Calibracao °C</th>
+                    <th>Correção</th>
                     <th>Monitor porta</th>
                     <th>Ultima comunicacao</th>
                     <th>Estado</th>
