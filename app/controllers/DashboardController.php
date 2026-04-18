@@ -373,7 +373,7 @@ class DashboardController {
             exit;
         }
 
-        $this->pauseModel->closeActive($deviceId);
+        $this->pauseModel->closeActive($deviceId, (int) $_SESSION['user_id']);
         $this->deviceModel->resumeRecordings($deviceId);
         echo json_encode(['success' => true]);
     }

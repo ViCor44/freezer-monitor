@@ -156,8 +156,10 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                                 <thead class="table-light sticky-top">
                                     <tr>
                                         <th style="width:135px">Pausado em</th>
+                                        <th style="width:120px">Pausado por</th>
                                         <th>Motivo</th>
                                         <th style="width:135px">Retomado em</th>
+                                        <th style="width:120px">Retomado por</th>
                                         <th style="width:110px">Duração</th>
                                     </tr>
                                 </thead>
@@ -177,12 +179,20 @@ $isOnline = !empty($device['active']) && $isRecentlySeen;
                                     ?>
                                     <tr class="<?= $resumedAt === null ? 'table-danger' : '' ?>">
                                         <td class="text-nowrap small"><?= $pausedAt ?></td>
+                                        <td class="small text-nowrap"><?= htmlspecialchars($pause['paused_by_name'] ?? '—') ?></td>
                                         <td class="small" style="white-space:pre-wrap"><?= htmlspecialchars($pause['reason']) ?></td>
                                         <td class="text-nowrap small">
                                             <?php if ($resumedAt): ?>
                                                 <?= $resumedAt ?>
                                             <?php else: ?>
                                                 <span class="badge bg-danger">Ativo</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="small text-nowrap">
+                                            <?php if ($resumedAt): ?>
+                                                <?= htmlspecialchars($pause['resumed_by_name'] ?? '—') ?>
+                                            <?php else: ?>
+                                                —
                                             <?php endif; ?>
                                         </td>
                                         <td class="small text-muted"><?= $duration ?></td>

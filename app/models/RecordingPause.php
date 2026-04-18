@@ -25,13 +25,13 @@ class RecordingPause {
     /**
      * Close the active (not yet resumed) pause for the device.
      */
-    public function closeActive(int $deviceId): bool {
+    public function closeActive(int $deviceId, int $resumedBy): bool {
         $stmt = $this->db->prepare(
             "UPDATE {$this->table}
-             SET resumed_at = NOW()
+             SET resumed_at = NOW(), resumed_by = ?
              WHERE device_id = ? AND resumed_at IS NULL"
         );
-        return $stmt->execute([$deviceId]);
+        return $stmt->execute([$resumedBy, $deviceId]);
     }
 
     /**
@@ -54,9 +54,12 @@ class RecordingPause {
      */
     public function getByDevice(int $deviceId): array {
         $stmt = $this->db->prepare(
-            "SELECT rp.*, u.name AS paused_by_name
+            "SELECT rp.*,
+                    u1.name AS paused_by_name,
+                    u2.name AS resumed_by_name
              FROM {$this->table} rp
-             LEFT JOIN users u ON u.id = rp.paused_by
+             LEFT JOIN users u1 ON u1.id = rp.paused_by
+             LEFT JOIN users u2 ON u2.id = rp.resumed_by
              WHERE rp.device_id = ?
              ORDER BY rp.paused_at DESC"
         );
