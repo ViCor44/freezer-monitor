@@ -115,7 +115,12 @@
                 <?php endif; ?>
 
                 <?php if ($isInactive): ?>
-                <div class="device-card-empty-space" aria-hidden="true"></div>
+                <div class="device-card-inactive-message my-auto">
+                    <div class="device-card-inactive-title">
+                        <i class="bi bi-slash-circle me-2"></i>Dispositivo inativo
+                    </div>
+                    <div class="device-card-inactive-text">A monitorizacao e os registos estao desativados.</div>
+                </div>
                 <?php elseif ($isPaused): ?>
                 <div class="mb-2">
                     <div class="text-danger small fw-semibold"><i class="bi bi-info-circle me-1"></i>Motivo:</div>

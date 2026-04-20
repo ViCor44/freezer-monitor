@@ -80,8 +80,9 @@ main.container-fluid {
 }
 
 .device-card-inactive {
-    background: linear-gradient(180deg, #fff1f1, #ffe2e2);
-    border: 1px solid rgba(220, 53, 69, .2) !important;
+    background: linear-gradient(180deg, #fff0f0, #ffd9d9);
+    border: 1px solid rgba(220, 53, 69, .32) !important;
+    box-shadow: 0 .5rem 1rem rgba(220, 53, 69, .08) !important;
 }
 
 .device-card-inactive .device-name {
@@ -97,9 +98,30 @@ main.container-fluid {
     flex-direction: column;
 }
 
-.device-card-empty-space {
+.device-card-inactive-message {
     flex: 1 1 auto;
     min-height: 5.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: .85rem 1rem;
+    margin-top: .35rem;
+    border-radius: .75rem;
+    background: rgba(255, 255, 255, .45);
+    border: 1px solid rgba(220, 53, 69, .16);
+}
+
+.device-card-inactive-title {
+    color: #842029;
+    font-weight: 700;
+    margin-bottom: .25rem;
+}
+
+.device-card-inactive-text {
+    color: #9a4b53;
+    font-size: .88rem;
+    line-height: 1.35;
 }
 
 .device-card-footer-placeholder {
@@ -107,12 +129,26 @@ main.container-fluid {
 }
 
 html.dark-mode .device-card-inactive {
-    background: linear-gradient(180deg, rgba(220, 53, 69, .24), rgba(220, 53, 69, .14));
-    border-color: rgba(255, 138, 138, .25) !important;
+    background: linear-gradient(180deg, rgba(220, 53, 69, .32), rgba(220, 53, 69, .18));
+    border-color: rgba(255, 138, 138, .34) !important;
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .18) !important;
 }
 
 html.dark-mode .device-card-inactive .device-name {
     color: #ffb3b3;
+}
+
+html.dark-mode .device-card-inactive-message {
+    background: rgba(0, 0, 0, .12);
+    border-color: rgba(255, 179, 179, .22);
+}
+
+html.dark-mode .device-card-inactive-title {
+    color: #ffc3c3;
+}
+
+html.dark-mode .device-card-inactive-text {
+    color: #ffd7d7;
 }
 
 /* ── Tables ─────────────────────────────────────────────── */
