@@ -42,7 +42,11 @@
                         </span>
                     </td>
                     <td><?= $d['last_seen_at'] ? date('Y-m-d H:i', strtotime($d['last_seen_at'])) : '—' ?></td>
-                    <td><span class="badge bg-<?= $d['active'] ? 'success' : 'secondary' ?>\"><?= $d['active'] ? 'Ativo' : 'Inativo' ?></span></td>
+                    <td>
+                        <span class="device-status <?= $d['active'] ? 'device-status-active' : 'device-status-inactive' ?>">
+                            <?= $d['active'] ? 'Ativo' : 'Inativo' ?>
+                        </span>
+                    </td>
                     <td class="text-end">
                         <button class="btn btn-sm btn-outline-primary"
                             data-bs-toggle="modal" data-bs-target="#editDeviceModal"

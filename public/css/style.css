@@ -84,6 +84,26 @@ main.container-fluid {
     vertical-align: middle;
 }
 
+.device-status {
+    font-weight: 600;
+}
+
+.device-status-active {
+    color: #198754;
+}
+
+.device-status-inactive {
+    color: #dc3545;
+}
+
+html.dark-mode .device-status-active {
+    color: #5dd39e;
+}
+
+html.dark-mode .device-status-inactive {
+    color: #ff8a8a;
+}
+
 .history-list {
     background-color: var(--fm-card-bg);
     border-color: var(--fm-border) !important;
