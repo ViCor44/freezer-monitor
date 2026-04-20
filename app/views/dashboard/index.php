@@ -90,7 +90,7 @@
     $cardStyle = $isPaused && !$isInactive ? 'background-color:#fff5f5;' : '';
     ?>
     <div class="col-sm-6 col-lg-4 col-xl-3" data-device-id="<?= (int) $device['id'] ?>">
-        <div class="<?= $cardClasses ?>"
+        <div class="<?= $cardClasses ?> h-100 d-flex flex-column"
              style="<?= $cardStyle ?>">
 
             <?php if ($isPaused && !$isInactive): ?>
@@ -101,7 +101,7 @@
             <?php endif; ?>
 
             <a href="<?= BASE_URL ?>/dashboard/device?id=<?= (int) $device['id'] ?>"
-               class="card-body text-decoration-none d-block"
+               class="card-body text-decoration-none d-block device-card-body flex-grow-1"
                style="color: inherit;">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="fw-semibold device-name"><i class="bi bi-cpu me-2"></i><?= htmlspecialchars($device['name']) ?></span>
@@ -115,6 +115,7 @@
                 <?php endif; ?>
 
                 <?php if ($isInactive): ?>
+                <div class="device-card-empty-space" aria-hidden="true"></div>
                 <?php elseif ($isPaused): ?>
                 <div class="mb-2">
                     <div class="text-danger small fw-semibold"><i class="bi bi-info-circle me-1"></i>Motivo:</div>
@@ -145,9 +146,10 @@
                 </div>
             </a>
 
-            <?php if (!$isInactive): ?>
             <div class="card-footer bg-transparent border-0 pt-0 pb-2 px-3">
-                <?php if ($isPaused): ?>
+                <?php if ($isInactive): ?>
+                <div class="device-card-footer-placeholder" aria-hidden="true"></div>
+                <?php elseif ($isPaused): ?>
                 <button type="button"
                         class="btn btn-success btn-sm w-100 btn-resume-recordings"
                         data-device-id="<?= (int) $device['id'] ?>"
@@ -163,7 +165,6 @@
                 </button>
                 <?php endif; ?>
             </div>
-            <?php endif; ?>
 
         </div>
     </div>

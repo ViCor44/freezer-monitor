@@ -5,17 +5,20 @@
 <?php
 $lastSeen = $device['last_seen_at'] ?? $device['last_reading'] ?? null;
 $secondsSinceSeen = isset($device['seconds_since_seen']) ? (int) $device['seconds_since_seen'] : null;
+$isInactive = empty($device['active']);
 $isRecentlySeen = $secondsSinceSeen !== null
     && $secondsSinceSeen >= 0
     && $secondsSinceSeen <= (DEVICE_ONLINE_WINDOW_MINUTES * 60);
-$isOnline = !empty($device['active']) && $isRecentlySeen;
+$isOnline = !$isInactive && $isRecentlySeen;
+$statusBadgeClass = $isInactive ? 'danger' : ($isOnline ? 'success' : 'secondary');
+$statusBadgeText = $isInactive ? 'Inativo' : ($isOnline ? 'Online' : 'Offline');
 ?>
 
 <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
         <h5 class="mb-1">
             Historico - <?= htmlspecialchars($device['name']) ?>
-            <span class="badge bg-<?= $isOnline ? 'success' : 'secondary' ?> ms-2"><?= $isOnline ? 'Online' : 'Offline' ?></span>
+            <span class="badge bg-<?= $statusBadgeClass ?> ms-2"><?= $statusBadgeText ?></span>
         </h5>
         <?php if (!empty($device['location'])): ?>
             <div class="text-muted" style="font-size: 0.7rem; margin-left: 28px; line-height: 1;">

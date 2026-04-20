@@ -92,6 +92,20 @@ main.container-fluid {
     min-height: 124px;
 }
 
+.device-card-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.device-card-empty-space {
+    flex: 1 1 auto;
+    min-height: 5.75rem;
+}
+
+.device-card-footer-placeholder {
+    min-height: 31px;
+}
+
 html.dark-mode .device-card-inactive {
     background: linear-gradient(180deg, rgba(220, 53, 69, .24), rgba(220, 53, 69, .14));
     border-color: rgba(255, 138, 138, .25) !important;
