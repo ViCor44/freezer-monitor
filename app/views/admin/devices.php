@@ -95,6 +95,10 @@
                             <input class="form-check-input" type="checkbox" name="monitor_door_openings" value="1" id="addDeviceMonitorDoor" checked>
                             <label class="form-check-label" for="addDeviceMonitorDoor">Monitorizacao da abertura de porta</label>
                         </div>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" name="active" value="1" id="addDeviceActive" checked>
+                            <label class="form-check-label" for="addDeviceActive">Ativo</label>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Adicionar</button></div>

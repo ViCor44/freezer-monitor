@@ -86,10 +86,11 @@ class AdminController {
         $tempMax  = (float) ($_POST['temp_max'] ?? TEMP_MAX);
         $tempMin  = (float) ($_POST['temp_min'] ?? TEMP_MIN);
         $calibrationOffset = (float) ($_POST['calibration_offset'] ?? 0);
+        $active   = isset($_POST['active']) ? 1 : 0;
         $monitorDoorOpenings = isset($_POST['monitor_door_openings']) ? 1 : 0;
 
         if ($name && $devEui) {
-            $this->deviceModel->create($name, $devEui, $location, $tempMax, $tempMin, $monitorDoorOpenings, $calibrationOffset);
+            $this->deviceModel->create($name, $devEui, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset);
         }
 
         header('Location: ' . BASE_URL . '/admin/devices');

@@ -140,6 +140,7 @@ class Device {
         string $location = '',
         float $tempMax = TEMP_MAX,
         float $tempMin = TEMP_MIN,
+        int $active = 1,
         int $monitorDoorOpenings = 1,
         float $calibrationOffset = 0.0
     ): int {
@@ -148,24 +149,24 @@ class Device {
 
         if ($supportsDoorMonitoring && $supportsCalibrationOffset) {
             $stmt = $this->db->prepare(
-                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings, calibration_offset) VALUES (?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, active, monitor_door_openings, calibration_offset) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
             );
-            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings, $calibrationOffset]);
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset]);
         } elseif ($supportsDoorMonitoring) {
             $stmt = $this->db->prepare(
-                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, monitor_door_openings) VALUES (?, ?, ?, ?, ?, ?)'
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, active, monitor_door_openings) VALUES (?, ?, ?, ?, ?, ?, ?)'
             );
-            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $monitorDoorOpenings]);
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $active, $monitorDoorOpenings]);
         } elseif ($supportsCalibrationOffset) {
             $stmt = $this->db->prepare(
-                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, calibration_offset) VALUES (?, ?, ?, ?, ?, ?)'
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, active, calibration_offset) VALUES (?, ?, ?, ?, ?, ?, ?)'
             );
-            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $calibrationOffset]);
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $active, $calibrationOffset]);
         } else {
             $stmt = $this->db->prepare(
-                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min) VALUES (?, ?, ?, ?, ?)'
+                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, active) VALUES (?, ?, ?, ?, ?, ?)'
             );
-            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin]);
+            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $active]);
         }
 
         return (int) $this->db->lastInsertId();
