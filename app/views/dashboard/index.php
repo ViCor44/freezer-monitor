@@ -50,13 +50,14 @@
 <div class="row g-3 mb-4" id="deviceCards">
 <?php foreach ($devices as $device): ?>
     <?php
+    $isInactive = empty($device['active']);
     $lastSeen = $device['last_seen_at'] ?? $device['last_reading'] ?? null;
     $secondsSinceSeen = isset($device['seconds_since_seen']) ? (int) $device['seconds_since_seen'] : null;
     $secondsSinceReading = isset($device['seconds_since_reading']) ? (int) $device['seconds_since_reading'] : null;
     $isRecentlySeen = $secondsSinceSeen !== null
         && $secondsSinceSeen >= 0
         && $secondsSinceSeen <= (DEVICE_ONLINE_WINDOW_MINUTES * 60);
-    $isOnline = !empty($device['active']) && $isRecentlySeen;
+    $isOnline = !$isInactive && $isRecentlySeen;
     $hasRecentTemperature = $device['last_temp'] !== null
         && $secondsSinceReading !== null
         && $secondsSinceReading >= 0
@@ -78,12 +79,21 @@
     $isPaused = !empty($device['recordings_paused']);
     $pauseReason = htmlspecialchars($device['pause_reason'] ?? '');
     $pausedAt = !empty($device['paused_at']) ? date('Y-m-d H:i', strtotime($device['paused_at'])) : '';
+    $statusBadgeClass = $isInactive ? 'danger' : ($isOnline ? 'success' : 'secondary');
+    $statusBadgeText = $isInactive ? 'Inativo' : ($isOnline ? 'Online' : 'Offline');
+    $cardClasses = 'card border-0 shadow-sm w-100 device-card';
+    if ($isInactive) {
+        $cardClasses .= ' device-card-inactive';
+    } elseif ($isPaused) {
+        $cardClasses .= ' border border-danger border-2';
+    }
+    $cardStyle = $isPaused && !$isInactive ? 'background-color:#fff5f5;' : '';
     ?>
     <div class="col-sm-6 col-lg-4 col-xl-3" data-device-id="<?= (int) $device['id'] ?>">
-        <div class="card border-0 shadow-sm w-100 device-card <?= $isPaused ? 'border border-danger border-2' : '' ?>"
-             style="<?= $isPaused ? 'background-color:#fff5f5;' : '' ?>">
+        <div class="<?= $cardClasses ?>"
+             style="<?= $cardStyle ?>">
 
-            <?php if ($isPaused): ?>
+            <?php if ($isPaused && !$isInactive): ?>
             <div class="card-header bg-danger text-white py-2 px-3 d-flex align-items-center gap-2">
                 <i class="bi bi-pause-circle-fill"></i>
                 <span class="fw-semibold small">Registos pausados</span>
@@ -95,16 +105,17 @@
                style="color: inherit;">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="fw-semibold device-name"><i class="bi bi-cpu me-2"></i><?= htmlspecialchars($device['name']) ?></span>
-                    <span class="badge device-online-badge bg-<?= $isOnline ? 'success' : 'secondary' ?>"><?= $isOnline ? 'Online' : 'Offline' ?></span>
+                    <span class="badge device-online-badge bg-<?= $statusBadgeClass ?>"><?= $statusBadgeText ?></span>
                     
                 </div>
-                <?php if (!empty($device['location'])): ?>
+                <?php if (!$isInactive && !empty($device['location'])): ?>
                     <div class="text-muted" style="font-size: 0.7rem; margin-left: 28px; line-height: 1;">
                         <?= htmlspecialchars($device['location']) ?>
                     </div>
                 <?php endif; ?>
 
-                <?php if ($isPaused): ?>
+                <?php if ($isInactive): ?>
+                <?php elseif ($isPaused): ?>
                 <div class="mb-2">
                     <div class="text-danger small fw-semibold"><i class="bi bi-info-circle me-1"></i>Motivo:</div>
                     <div class="text-danger small"><?= $pauseReason ?></div>
@@ -134,6 +145,7 @@
                 </div>
             </a>
 
+            <?php if (!$isInactive): ?>
             <div class="card-footer bg-transparent border-0 pt-0 pb-2 px-3">
                 <?php if ($isPaused): ?>
                 <button type="button"
@@ -151,6 +163,7 @@
                 </button>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
 
         </div>
     </div>
