@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS devices (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name            VARCHAR(100)   NOT NULL,
     dev_eui         VARCHAR(16)    NOT NULL UNIQUE,
-    zone            VARCHAR(100)   DEFAULT NULL,
     location        VARCHAR(200)   DEFAULT NULL,
     temp_max        DECIMAL(5,2)   NOT NULL DEFAULT 5.00,
     temp_min        DECIMAL(5,2)   NOT NULL DEFAULT -25.00,

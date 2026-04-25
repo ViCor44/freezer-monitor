@@ -14,7 +14,6 @@ class Device {
     private $table = 'devices';
     private ?bool $hasMonitorDoorOpeningsColumn = null;
     private ?bool $hasCalibrationOffsetColumn = null;
-    private ?bool $hasZoneColumn = null;
 
     public function __construct($db) {  // ← Recebe $db
         $this->db = $db;
@@ -66,7 +65,7 @@ class Device {
                 FROM {$this->table} d
                 LEFT JOIN recording_pauses rp
                        ON rp.device_id = d.id AND rp.resumed_at IS NULL
-                  ORDER BY COALESCE(NULLIF(TRIM(d.zone), ''), 'Sem zona'), d.name";
+                 ORDER BY COALESCE(NULLIF(TRIM(d.location), ''), 'Sem localizacao'), d.name";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -138,7 +137,6 @@ class Device {
     public function create(
         string $name,
         string $devEui,
-        string $zone = '',
         string $location = '',
         float $tempMax = TEMP_MAX,
         float $tempMin = TEMP_MIN,
@@ -148,17 +146,10 @@ class Device {
     ): int {
         $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
         $supportsCalibrationOffset = $this->supportsCalibrationOffset();
-        $supportsZone = $this->supportsZone();
 
         $columns = ['name', 'dev_eui'];
         $placeholders = ['?', '?'];
         $values = [$name, strtolower($devEui)];
-
-        if ($supportsZone) {
-            $columns[] = 'zone';
-            $placeholders[] = '?';
-            $values[] = $zone;
-        }
 
         $columns[] = 'location';
         $placeholders[] = '?';
@@ -203,7 +194,6 @@ class Device {
     public function update(
         int $id,
         string $name,
-        string $zone,
         string $location,
         float $tempMax,
         float $tempMin,
@@ -213,15 +203,9 @@ class Device {
     ): bool {
         $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
         $supportsCalibrationOffset = $this->supportsCalibrationOffset();
-        $supportsZone = $this->supportsZone();
 
         $setParts = ['name = ?'];
         $values = [$name];
-
-        if ($supportsZone) {
-            $setParts[] = 'zone = ?';
-            $values[] = $zone;
-        }
 
         $setParts[] = 'location = ?';
         $values[] = $location;
@@ -281,21 +265,6 @@ class Device {
         }
 
         return $this->hasCalibrationOffsetColumn;
-    }
-
-    private function supportsZone(): bool {
-        if ($this->hasZoneColumn !== null) {
-            return $this->hasZoneColumn;
-        }
-
-        try {
-            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'zone'");
-            $this->hasZoneColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
-        } catch (Throwable $e) {
-            $this->hasZoneColumn = false;
-        }
-
-        return $this->hasZoneColumn;
     }
 
     public function updateLastSeen(int $id): bool {

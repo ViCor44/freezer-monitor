@@ -44,25 +44,25 @@
 </div>
 
 <?php
-$zoneLabels = [];
+$locationLabels = [];
 foreach ($devices as $deviceRow) {
-    $zoneLabel = trim((string) ($deviceRow['zone'] ?? ''));
-    if ($zoneLabel === '') {
-        $zoneLabel = 'Sem zona';
+    $locationLabel = trim((string) ($deviceRow['location'] ?? ''));
+    if ($locationLabel === '') {
+        $locationLabel = 'Sem localizacao';
     }
-    $zoneLabels[$zoneLabel] = true;
+    $locationLabels[$locationLabel] = true;
 }
 
-$zoneTabs = array_keys($zoneLabels);
-natcasesort($zoneTabs);
-$zoneTabs = array_values($zoneTabs);
+$locationTabs = array_keys($locationLabels);
+natcasesort($locationTabs);
+$locationTabs = array_values($locationTabs);
 
-$zoneSlug = static function (string $value): string {
+$locationSlug = static function (string $value): string {
     $slug = strtolower(trim($value));
     $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
     $slug = trim($slug, '-');
 
-    return $slug !== '' ? $slug : 'sem-zona';
+    return $slug !== '' ? $slug : 'sem-localizacao';
 };
 ?>
 
@@ -72,21 +72,21 @@ $zoneSlug = static function (string $value): string {
         <input type="radio" class="btn-check" name="deviceViewMode" id="viewModeAll" autocomplete="off" checked>
         <label class="btn btn-outline-primary" for="viewModeAll">Todos</label>
 
-        <input type="radio" class="btn-check" name="deviceViewMode" id="viewModeByZone" autocomplete="off">
-        <label class="btn btn-outline-primary" for="viewModeByZone">Abas por zona</label>
+        <input type="radio" class="btn-check" name="deviceViewMode" id="viewModeByLocation" autocomplete="off">
+        <label class="btn btn-outline-primary" for="viewModeByLocation">Abas por localizacao</label>
     </div>
 </div>
 
-<?php if (!empty($zoneTabs)): ?>
-<ul class="nav nav-tabs mb-3 d-none" id="zoneTabs" role="tablist">
-    <?php foreach ($zoneTabs as $index => $zoneTabLabel): ?>
-    <?php $zoneKey = $zoneSlug($zoneTabLabel); ?>
+<?php if (!empty($locationTabs)): ?>
+<ul class="nav nav-tabs mb-3 d-none" id="locationTabs" role="tablist">
+    <?php foreach ($locationTabs as $index => $locationTabLabel): ?>
+    <?php $locationKey = $locationSlug($locationTabLabel); ?>
     <li class="nav-item" role="presentation">
         <button class="nav-link<?= $index === 0 ? ' active' : '' ?>"
                 type="button"
-                data-zone-filter="<?= htmlspecialchars($zoneKey) ?>"
+                data-location-filter="<?= htmlspecialchars($locationKey) ?>"
                 aria-selected="<?= $index === 0 ? 'true' : 'false' ?>">
-            <?= htmlspecialchars($zoneTabLabel) ?>
+            <?= htmlspecialchars($locationTabLabel) ?>
         </button>
     </li>
     <?php endforeach; ?>
@@ -96,11 +96,11 @@ $zoneSlug = static function (string $value): string {
 <div class="row g-3 mb-4" id="deviceCards">
 <?php foreach ($devices as $device): ?>
     <?php
-    $zoneLabel = trim((string) ($device['zone'] ?? ''));
-    if ($zoneLabel === '') {
-        $zoneLabel = 'Sem zona';
+    $locationLabel = trim((string) ($device['location'] ?? ''));
+    if ($locationLabel === '') {
+        $locationLabel = 'Sem localizacao';
     }
-    $zoneKey = $zoneSlug($zoneLabel);
+    $locationKey = $locationSlug($locationLabel);
 
     $isInactive = empty($device['active']);
     $lastSeen = $device['last_seen_at'] ?? $device['last_reading'] ?? null;
@@ -141,7 +141,7 @@ $zoneSlug = static function (string $value): string {
     }
     $cardStyle = $isPaused && !$isInactive ? 'background-color:#fff5f5;' : '';
     ?>
-    <div class="col-sm-6 col-lg-4 col-xl-3" data-device-id="<?= (int) $device['id'] ?>" data-zone="<?= htmlspecialchars($zoneKey) ?>">
+    <div class="col-sm-6 col-lg-4 col-xl-3" data-device-id="<?= (int) $device['id'] ?>" data-location-group="<?= htmlspecialchars($locationKey) ?>">
         <div class="<?= $cardClasses ?> h-100 d-flex flex-column"
              style="<?= $cardStyle ?>">
 
@@ -159,9 +159,6 @@ $zoneSlug = static function (string $value): string {
                     <span class="fw-semibold device-name"><i class="bi bi-cpu me-2"></i><?= htmlspecialchars($device['name']) ?></span>
                     <span class="badge device-online-badge bg-<?= $statusBadgeClass ?>"><?= $statusBadgeText ?></span>
                     
-                </div>
-                <div class="d-flex align-items-center gap-2 text-muted mb-1" style="font-size: 0.72rem; margin-left: 28px;">
-                    <span><i class="bi bi-diagram-3 me-1"></i><?= htmlspecialchars($zoneLabel) ?></span>
                 </div>
                 <?php if (!$isInactive && !empty($device['location'])): ?>
                     <div class="text-muted" style="font-size: 0.7rem; margin-left: 28px; line-height: 1;">
@@ -270,19 +267,19 @@ $zoneSlug = static function (string $value): string {
 <script>
 (function () {
     const BASE_URL = '<?= BASE_URL ?>';
-    const VIEW_STORAGE_KEY = 'dashboard-device-view-mode';
+    const VIEW_STORAGE_KEY = 'dashboard-device-view-mode-location';
     let pendingDeviceId = null;
 
     const cardsContainer = document.getElementById('deviceCards');
     const viewModeAll = document.getElementById('viewModeAll');
-    const viewModeByZone = document.getElementById('viewModeByZone');
-    const zoneTabs = document.getElementById('zoneTabs');
-    const zoneButtons = Array.from(document.querySelectorAll('[data-zone-filter]'));
-    let activeZone = zoneButtons[0]?.dataset.zoneFilter || '';
+    const viewModeByLocation = document.getElementById('viewModeByLocation');
+    const locationTabs = document.getElementById('locationTabs');
+    const locationButtons = Array.from(document.querySelectorAll('[data-location-filter]'));
+    let activeLocation = locationButtons[0]?.dataset.locationFilter || '';
 
-    function setZoneButtonActive(zoneKey) {
-        zoneButtons.forEach(function (button) {
-            const isActive = button.dataset.zoneFilter === zoneKey;
+    function setLocationButtonActive(locationKey) {
+        locationButtons.forEach(function (button) {
+            const isActive = button.dataset.locationFilter === locationKey;
             button.classList.toggle('active', isActive);
             button.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
@@ -293,11 +290,11 @@ $zoneSlug = static function (string $value): string {
             return;
         }
 
-        const mode = viewModeByZone && viewModeByZone.checked ? 'zones' : 'all';
+        const mode = viewModeByLocation && viewModeByLocation.checked ? 'locations' : 'all';
         const cards = cardsContainer.querySelectorAll('[data-device-id]');
 
-        if (zoneTabs) {
-            zoneTabs.classList.toggle('d-none', mode !== 'zones');
+        if (locationTabs) {
+            locationTabs.classList.toggle('d-none', mode !== 'locations');
         }
 
         cards.forEach(function (card) {
@@ -306,13 +303,13 @@ $zoneSlug = static function (string $value): string {
                 return;
             }
 
-            const cardZone = card.dataset.zone || '';
-            card.classList.toggle('d-none', cardZone !== activeZone);
+            const cardLocation = card.dataset.locationGroup || '';
+            card.classList.toggle('d-none', cardLocation !== activeLocation);
         });
     }
 
     function saveViewMode() {
-        const mode = viewModeByZone && viewModeByZone.checked ? 'zones' : 'all';
+        const mode = viewModeByLocation && viewModeByLocation.checked ? 'locations' : 'all';
         localStorage.setItem(VIEW_STORAGE_KEY, mode);
     }
 
@@ -323,29 +320,29 @@ $zoneSlug = static function (string $value): string {
         });
     }
 
-    if (viewModeByZone) {
-        viewModeByZone.addEventListener('change', function () {
+    if (viewModeByLocation) {
+        viewModeByLocation.addEventListener('change', function () {
             saveViewMode();
             applyDeviceViewFilter();
         });
     }
 
-    zoneButtons.forEach(function (button) {
+    locationButtons.forEach(function (button) {
         button.addEventListener('click', function () {
-            activeZone = button.dataset.zoneFilter || activeZone;
-            setZoneButtonActive(activeZone);
+            activeLocation = button.dataset.locationFilter || activeLocation;
+            setLocationButtonActive(activeLocation);
             applyDeviceViewFilter();
         });
     });
 
     const storedMode = localStorage.getItem(VIEW_STORAGE_KEY);
-    if (storedMode === 'zones' && viewModeByZone) {
-        viewModeByZone.checked = true;
+    if (storedMode === 'locations' && viewModeByLocation) {
+        viewModeByLocation.checked = true;
     } else if (viewModeAll) {
         viewModeAll.checked = true;
     }
 
-    setZoneButtonActive(activeZone);
+    setLocationButtonActive(activeLocation);
     applyDeviceViewFilter();
 
     // --- Pausar ---

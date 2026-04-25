@@ -1,4 +1,0 @@
-USE freezer_monitor;
-
-ALTER TABLE devices
-    ADD COLUMN IF NOT EXISTS zone VARCHAR(100) DEFAULT NULL AFTER dev_eui;
