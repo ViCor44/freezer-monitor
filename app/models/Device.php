@@ -14,6 +14,7 @@ class Device {
     private $table = 'devices';
     private ?bool $hasMonitorDoorOpeningsColumn = null;
     private ?bool $hasCalibrationOffsetColumn = null;
+    private ?bool $hasZoneColumn = null;
 
     public function __construct($db) {  // ← Recebe $db
         $this->db = $db;
@@ -65,7 +66,7 @@ class Device {
                 FROM {$this->table} d
                 LEFT JOIN recording_pauses rp
                        ON rp.device_id = d.id AND rp.resumed_at IS NULL
-                ORDER BY d.name";
+                  ORDER BY COALESCE(NULLIF(TRIM(d.zone), ''), 'Sem zona'), d.name";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -137,6 +138,7 @@ class Device {
     public function create(
         string $name,
         string $devEui,
+        string $zone = '',
         string $location = '',
         float $tempMax = TEMP_MAX,
         float $tempMin = TEMP_MIN,
@@ -146,28 +148,54 @@ class Device {
     ): int {
         $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
         $supportsCalibrationOffset = $this->supportsCalibrationOffset();
+        $supportsZone = $this->supportsZone();
 
-        if ($supportsDoorMonitoring && $supportsCalibrationOffset) {
-            $stmt = $this->db->prepare(
-                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, active, monitor_door_openings, calibration_offset) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-            );
-            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset]);
-        } elseif ($supportsDoorMonitoring) {
-            $stmt = $this->db->prepare(
-                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, active, monitor_door_openings) VALUES (?, ?, ?, ?, ?, ?, ?)'
-            );
-            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $active, $monitorDoorOpenings]);
-        } elseif ($supportsCalibrationOffset) {
-            $stmt = $this->db->prepare(
-                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, active, calibration_offset) VALUES (?, ?, ?, ?, ?, ?, ?)'
-            );
-            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $active, $calibrationOffset]);
-        } else {
-            $stmt = $this->db->prepare(
-                'INSERT INTO devices (name, dev_eui, location, temp_max, temp_min, active) VALUES (?, ?, ?, ?, ?, ?)'
-            );
-            $stmt->execute([$name, strtolower($devEui), $location, $tempMax, $tempMin, $active]);
+        $columns = ['name', 'dev_eui'];
+        $placeholders = ['?', '?'];
+        $values = [$name, strtolower($devEui)];
+
+        if ($supportsZone) {
+            $columns[] = 'zone';
+            $placeholders[] = '?';
+            $values[] = $zone;
         }
+
+        $columns[] = 'location';
+        $placeholders[] = '?';
+        $values[] = $location;
+
+        $columns[] = 'temp_max';
+        $placeholders[] = '?';
+        $values[] = $tempMax;
+
+        $columns[] = 'temp_min';
+        $placeholders[] = '?';
+        $values[] = $tempMin;
+
+        $columns[] = 'active';
+        $placeholders[] = '?';
+        $values[] = $active;
+
+        if ($supportsDoorMonitoring) {
+            $columns[] = 'monitor_door_openings';
+            $placeholders[] = '?';
+            $values[] = $monitorDoorOpenings;
+        }
+
+        if ($supportsCalibrationOffset) {
+            $columns[] = 'calibration_offset';
+            $placeholders[] = '?';
+            $values[] = $calibrationOffset;
+        }
+
+        $sql = sprintf(
+            'INSERT INTO devices (%s) VALUES (%s)',
+            implode(', ', $columns),
+            implode(', ', $placeholders)
+        );
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($values);
 
         return (int) $this->db->lastInsertId();
     }
@@ -175,6 +203,7 @@ class Device {
     public function update(
         int $id,
         string $name,
+        string $zone,
         string $location,
         float $tempMax,
         float $tempMin,
@@ -184,32 +213,44 @@ class Device {
     ): bool {
         $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
         $supportsCalibrationOffset = $this->supportsCalibrationOffset();
+        $supportsZone = $this->supportsZone();
 
-        if ($supportsDoorMonitoring && $supportsCalibrationOffset) {
-            $stmt = $this->db->prepare(
-                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ?, calibration_offset = ? WHERE id = ?'
-            );
-            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $id]);
+        $setParts = ['name = ?'];
+        $values = [$name];
+
+        if ($supportsZone) {
+            $setParts[] = 'zone = ?';
+            $values[] = $zone;
         }
 
+        $setParts[] = 'location = ?';
+        $values[] = $location;
+
+        $setParts[] = 'temp_max = ?';
+        $values[] = $tempMax;
+
+        $setParts[] = 'temp_min = ?';
+        $values[] = $tempMin;
+
+        $setParts[] = 'active = ?';
+        $values[] = $active;
+
         if ($supportsDoorMonitoring) {
-            $stmt = $this->db->prepare(
-                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, monitor_door_openings = ? WHERE id = ?'
-            );
-            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $id]);
+            $setParts[] = 'monitor_door_openings = ?';
+            $values[] = $monitorDoorOpenings;
         }
 
         if ($supportsCalibrationOffset) {
-            $stmt = $this->db->prepare(
-                'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ?, calibration_offset = ? WHERE id = ?'
-            );
-            return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $calibrationOffset, $id]);
+            $setParts[] = 'calibration_offset = ?';
+            $values[] = $calibrationOffset;
         }
 
-        $stmt = $this->db->prepare(
-            'UPDATE devices SET name = ?, location = ?, temp_max = ?, temp_min = ?, active = ? WHERE id = ?'
-        );
-        return $stmt->execute([$name, $location, $tempMax, $tempMin, $active, $id]);
+        $values[] = $id;
+
+        $sql = sprintf('UPDATE devices SET %s WHERE id = ?', implode(', ', $setParts));
+        $stmt = $this->db->prepare($sql);
+
+        return $stmt->execute($values);
     }
 
     private function supportsDoorMonitoringOption(): bool {
@@ -240,6 +281,21 @@ class Device {
         }
 
         return $this->hasCalibrationOffsetColumn;
+    }
+
+    private function supportsZone(): bool {
+        if ($this->hasZoneColumn !== null) {
+            return $this->hasZoneColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'zone'");
+            $this->hasZoneColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $this->hasZoneColumn = false;
+        }
+
+        return $this->hasZoneColumn;
     }
 
     public function updateLastSeen(int $id): bool {

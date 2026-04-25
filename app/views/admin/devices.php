@@ -17,6 +17,7 @@
                 <tr>
                     <th>Nome</th>
                     <th>DevEUI</th>
+                    <th>Zona</th>
                     <th>Localizacao</th>
                     <th>Max °C</th>
                     <th>Min °C</th>
@@ -32,6 +33,7 @@
                 <tr>
                     <td><?= htmlspecialchars($d['name']) ?></td>
                     <td><code><?= htmlspecialchars($d['dev_eui']) ?></code></td>
+                    <td><?= htmlspecialchars(trim((string) ($d['zone'] ?? '')) ?: 'Sem zona') ?></td>
                     <td><?= htmlspecialchars($d['location'] ?? '—') ?></td>
                     <td><?= number_format((float)$d['temp_max'], 1) ?></td>
                     <td><?= number_format((float)$d['temp_min'], 1) ?></td>
@@ -52,6 +54,7 @@
                             data-bs-toggle="modal" data-bs-target="#editDeviceModal"
                             data-id="<?= $d['id'] ?>"
                             data-name="<?= htmlspecialchars($d['name']) ?>"
+                            data-zone="<?= htmlspecialchars($d['zone'] ?? '') ?>"
                             data-location="<?= htmlspecialchars($d['location'] ?? '') ?>"
                             data-temp-max="<?= $d['temp_max'] ?>"
                             data-temp-min="<?= $d['temp_min'] ?>"
@@ -84,6 +87,7 @@
                 <div class="modal-body">
                     <div class="mb-3"><label class="form-label">Nome</label><input type="text" name="name" class="form-control" required></div>
                     <div class="mb-3"><label class="form-label">DevEUI <small class="text-muted">(16 hex chars)</small></label><input type="text" name="dev_eui" class="form-control" maxlength="16" pattern="[0-9a-fA-F]{16}" required></div>
+                    <div class="mb-3"><label class="form-label">Zona</label><input type="text" name="zone" class="form-control" placeholder="Ex: Restaurante"></div>
                     <div class="mb-3"><label class="form-label">Localizacao</label><input type="text" name="location" class="form-control"></div>
                     <div class="row">
                         <div class="col"><label class="form-label">Max °C</label><input type="number" name="temp_max" class="form-control" value="<?= TEMP_MAX ?>" step="0.1"></div>
@@ -121,6 +125,7 @@
                 <div class="modal-header"><h5 class="modal-title">Editar dispositivo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body">
                     <div class="mb-3"><label class="form-label">Nome</label><input type="text" name="name" id="editDeviceName" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Zona</label><input type="text" name="zone" id="editDeviceZone" class="form-control" placeholder="Ex: Restaurante"></div>
                     <div class="mb-3"><label class="form-label">Localizacao</label><input type="text" name="location" id="editDeviceLocation" class="form-control"></div>
                     <div class="row">
                         <div class="col"><label class="form-label">Max °C</label><input type="number" name="temp_max" id="editDeviceTempMax" class="form-control" step="0.1"></div>
@@ -155,6 +160,7 @@ if (editModal) {
         const btn = e.relatedTarget;
         document.getElementById('editDeviceId').value       = btn.dataset.id;
         document.getElementById('editDeviceName').value     = btn.dataset.name;
+        document.getElementById('editDeviceZone').value     = btn.dataset.zone ?? '';
         document.getElementById('editDeviceLocation').value = btn.dataset.location;
         document.getElementById('editDeviceTempMax').value  = btn.dataset.tempMax;
         document.getElementById('editDeviceTempMin').value  = btn.dataset.tempMin;
