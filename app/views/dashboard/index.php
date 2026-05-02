@@ -68,12 +68,21 @@ $locationSlug = static function (string $value): string {
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <h5 class="mb-0">Dispositivos</h5>
-    <div class="btn-group btn-group-sm" role="group" aria-label="Visualizacao de dispositivos">
-        <input type="radio" class="btn-check" name="deviceViewMode" id="viewModeAll" autocomplete="off" checked>
-        <label class="btn btn-outline-primary" for="viewModeAll">Todos</label>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Visualizacao de dispositivos">
+            <input type="radio" class="btn-check" name="deviceViewMode" id="viewModeAll" autocomplete="off" checked>
+            <label class="btn btn-outline-primary" for="viewModeAll">Todos</label>
 
-        <input type="radio" class="btn-check" name="deviceViewMode" id="viewModeByLocation" autocomplete="off">
-        <label class="btn btn-outline-primary" for="viewModeByLocation">Abas por localizacao</label>
+            <input type="radio" class="btn-check" name="deviceViewMode" id="viewModeByLocation" autocomplete="off">
+            <label class="btn btn-outline-primary" for="viewModeByLocation">Abas por localizacao</label>
+        </div>
+        <div class="d-flex align-items-center gap-2" id="deviceVisibilityToggles">
+            <span class="text-muted small">Filtro:</span>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="showOfflineDevices" checked>
+                <label class="form-check-label small" for="showOfflineDevices">Mostrar inativos</label>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -141,7 +150,10 @@ $locationSlug = static function (string $value): string {
     }
     $cardStyle = $isPaused && !$isInactive ? 'background-color:#fff5f5;' : '';
     ?>
-    <div class="col-sm-6 col-lg-4 col-xl-3" data-device-id="<?= (int) $device['id'] ?>" data-location-group="<?= htmlspecialchars($locationKey) ?>">
+    <div class="col-sm-6 col-lg-4 col-xl-3"
+         data-device-id="<?= (int) $device['id'] ?>"
+         data-location-group="<?= htmlspecialchars($locationKey) ?>"
+         data-device-online="<?= $isOnline ? '1' : '0' ?>">
         <div class="<?= $cardClasses ?> h-100 d-flex flex-column"
              style="<?= $cardStyle ?>">
 
@@ -227,6 +239,10 @@ $locationSlug = static function (string $value): string {
     </div>
 <?php endforeach; ?>
 </div>
+
+<?php if (!empty($devices)): ?>
+<div class="alert alert-info d-none" id="deviceFilterEmptyState">Nenhum dispositivo corresponde ao filtro selecionado.</div>
+<?php endif; ?>
 
 <?php if (empty($devices)): ?>
 <div class="alert alert-info">Ainda nao existem dispositivos registados.</div>
