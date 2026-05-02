@@ -153,7 +153,8 @@ $locationSlug = static function (string $value): string {
     <div class="col-sm-6 col-lg-4 col-xl-3"
          data-device-id="<?= (int) $device['id'] ?>"
          data-location-group="<?= htmlspecialchars($locationKey) ?>"
-         data-device-online="<?= $isOnline ? '1' : '0' ?>">
+            data-device-online="<?= $isOnline ? '1' : '0' ?>"
+            data-device-inactive="<?= $isInactive ? '1' : '0' ?>">
         <div class="<?= $cardClasses ?> h-100 d-flex flex-column"
              style="<?= $cardStyle ?>">
 

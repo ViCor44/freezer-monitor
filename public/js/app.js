@@ -172,7 +172,7 @@ function initDashboardVisibilityToggle() {
     }
 
     function applyFilter() {
-        const showOffline = !!offlineToggle.checked;
+        const showInactive = !!offlineToggle.checked;
         const cards = cardsContainer.querySelectorAll('[data-device-id]');
         const viewModeByLocation = document.getElementById('viewModeByLocation');
         const isLocationMode = !!(viewModeByLocation && viewModeByLocation.checked);
@@ -181,10 +181,10 @@ function initDashboardVisibilityToggle() {
         let visibleCount = 0;
 
         cards.forEach(function (card) {
-            const isOnline = card.getAttribute('data-device-online') === '1';
+            const isInactive = card.getAttribute('data-device-inactive') === '1';
             const locationGroup = card.getAttribute('data-location-group') || '';
             const matchesLocation = !isLocationMode || locationGroup === activeLocation;
-            const shouldShow = matchesLocation && (isOnline || showOffline);
+            const shouldShow = matchesLocation && (!isInactive || showInactive);
 
             card.classList.toggle('d-none', !shouldShow);
             if (shouldShow) {
