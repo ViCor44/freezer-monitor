@@ -79,7 +79,7 @@ $locationSlug = static function (string $value): string {
         <div class="d-flex align-items-center gap-2" id="deviceVisibilityToggles">
             <span class="text-muted small">Filtro:</span>
             <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" role="switch" id="showOfflineDevices" checked>
+                <input class="form-check-input" type="checkbox" role="switch" id="showOfflineDevices">
                 <label class="form-check-label small" for="showOfflineDevices">Mostrar inativos</label>
             </div>
         </div>
