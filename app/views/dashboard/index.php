@@ -150,12 +150,12 @@ $locationSlug = static function (string $value): string {
     }
     $cardStyle = $isPaused && !$isInactive ? 'background-color:#fff5f5;' : '';
     ?>
-    <div class="col-sm-6 col-lg-4 col-xl-3"
+    <div class="col-sm-6 col-lg-4 col-xl-3 d-flex flex-column"
          data-device-id="<?= (int) $device['id'] ?>"
          data-location-group="<?= htmlspecialchars($locationKey) ?>"
             data-device-online="<?= $isOnline ? '1' : '0' ?>"
             data-device-inactive="<?= $isInactive ? '1' : '0' ?>">
-        <div class="<?= $cardClasses ?> h-100 d-flex flex-column"
+        <div class="<?= $cardClasses ?> flex-fill d-flex flex-column"
              style="<?= $cardStyle ?>">
 
             <?php if ($isPaused && !$isInactive): ?>
