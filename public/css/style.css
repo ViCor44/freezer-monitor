@@ -97,6 +97,10 @@ main.container-fluid {
     flex-shrink: 0;
 }
 
+.device-card .card-body {
+    flex-grow: 0 !important;
+}
+
 .device-card-body {
     display: flex;
     flex-direction: column;

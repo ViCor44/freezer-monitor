@@ -216,7 +216,7 @@ $locationSlug = static function (string $value): string {
                 </div>
             </a>
 
-            <div class="card-footer bg-transparent border-0 pt-0 pb-2 px-3">
+            <div class="card-footer bg-transparent border-0 pt-0 pb-2 px-3 mt-auto">
                 <?php if ($isInactive): ?>
                 <div class="device-card-footer-placeholder" aria-hidden="true"></div>
                 <?php elseif ($isPaused): ?>
