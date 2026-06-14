@@ -83,7 +83,7 @@ function initDashboardLiveCards() {
     }
 
     function renderDeviceCard(device) {
-        const cardRoot = cardsContainer.querySelector('[data-device-id="' + device.id + '"]');
+        const cardRoot = cardsContainer.querySelector(':scope > [data-device-id="' + device.id + '"]');
         if (!cardRoot) {
             return;
         }
@@ -173,7 +173,7 @@ function initDashboardVisibilityToggle() {
 
     function applyFilter() {
         const showInactive = !!offlineToggle.checked;
-        const cards = cardsContainer.querySelectorAll('[data-device-id]');
+        const cards = cardsContainer.querySelectorAll(':scope > [data-device-id]');
         const viewModeByLocation = document.getElementById('viewModeByLocation');
         const isLocationMode = !!(viewModeByLocation && viewModeByLocation.checked);
         const activeLocationButton = document.querySelector('[data-location-filter].active');

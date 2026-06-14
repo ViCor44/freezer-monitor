@@ -308,7 +308,7 @@ $locationSlug = static function (string $value): string {
         }
 
         const mode = viewModeByLocation && viewModeByLocation.checked ? 'locations' : 'all';
-        const cards = cardsContainer.querySelectorAll('[data-device-id]');
+        const cards = cardsContainer.querySelectorAll(':scope > [data-device-id]');
 
         if (locationTabs) {
             locationTabs.classList.toggle('d-none', mode !== 'locations');
