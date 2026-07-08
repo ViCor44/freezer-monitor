@@ -77,4 +77,25 @@ define('TEMP_MAX', DEFAULT_TEMP_MAX);
 // ── Device Status ───────────────────────────────────────────────────────────
 define('DEVICE_ONLINE_WINDOW_MINUTES', (int) (getenv('DEVICE_ONLINE_WINDOW_MINUTES') ?: 12));
 
+// ── SMS (modem Teltonika RutOS) ────────────────────────────────────────────
+// Envia SMS quando um dispositivo permanece com temperatura fora do intervalo
+// durante mais de SMS_ALARM_MIN_MINUTES minutos consecutivos (default 60).
+$smsEnabledEnv = strtolower((string) getenv('SMS_ENABLED'));
+define('SMS_ENABLED', in_array($smsEnabledEnv, ['1', 'true', 'on', 'yes'], true));
+
+define('SMS_ALARM_MIN_MINUTES', (int) (getenv('SMS_ALARM_MIN_MINUTES') ?: 60));
+
+define('MODEM_SCHEME', getenv('MODEM_SCHEME') ?: 'https');
+define('MODEM_HOST',   getenv('MODEM_HOST')   ?: '192.168.63.253:8443');
+define('MODEM_USER',   getenv('MODEM_USER')   ?: 'admin');
+define('MODEM_PASS',   getenv('MODEM_PASS')   ?: '');
+define('MODEM_ID',     getenv('MODEM_ID')     ?: '3-1');
+define('MODEM_TIMEOUT',(int) (getenv('MODEM_TIMEOUT') ?: 8));
+
+$modemVerifyEnv = strtolower((string) getenv('MODEM_VERIFY_SSL'));
+define('MODEM_VERIFY_SSL', in_array($modemVerifyEnv, ['1', 'true', 'on', 'yes'], true));
+
+define('MODEM_TOKEN_FILE', getenv('MODEM_TOKEN_FILE')
+    ?: (ROOT . '/storage/sessions/modem_token.json'));
+
 ?>

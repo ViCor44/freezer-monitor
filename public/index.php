@@ -106,6 +106,7 @@ $routes = [
         '/admin/users/approve'         => ['AdminController',  'approveUser'],
         '/admin/users/revoke'          => ['AdminController',  'revokeUser'],
         '/admin/users/delete'          => ['AdminController',  'deleteUser'],
+        '/admin/users/sms'             => ['AdminController',  'updateUserSms'],
         '/admin/devices/create'        => ['AdminController',  'createDevice'],
         '/admin/devices/update'        => ['AdminController',  'updateDevice'],
         '/admin/devices/delete'        => ['AdminController',  'deleteDevice'],

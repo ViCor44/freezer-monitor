@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../app/models/Device.php';
 require_once __DIR__ . '/../../app/models/TemperatureReading.php';
 require_once __DIR__ . '/../../app/models/Alert.php';
 require_once __DIR__ . '/../../app/models/DoorOpening.php';
+require_once __DIR__ . '/../../app/services/SmsAlarmNotifier.php';
 
 class WebhookController {
     private $db;
@@ -12,6 +13,7 @@ class WebhookController {
     private TemperatureReading $readingModel;
     private Alert $alertModel;
     private DoorOpening $doorOpeningModel;
+    private SmsAlarmNotifier $smsNotifier;
 
     public function __construct($db = null) {
         if ($db === null) {
@@ -24,6 +26,7 @@ class WebhookController {
         $this->readingModel = new TemperatureReading($db);
         $this->alertModel = new Alert($db);
         $this->doorOpeningModel = new DoorOpening($db);
+        $this->smsNotifier = new SmsAlarmNotifier($db);
     }
 
     /**
@@ -139,6 +142,14 @@ class WebhookController {
 
         // Auto-generate alerts
         $this->checkAlerts($device, $adjustedTemperature);
+
+        // SMS: dispara/recupera quando o dispositivo esta fora do intervalo
+        // por mais de SMS_ALARM_MIN_MINUTES minutos consecutivos.
+        try {
+            $this->smsNotifier->processReading($device, $adjustedTemperature);
+        } catch (Throwable $e) {
+            error_log('SMS notifier falhou: ' . $e->getMessage());
+        }
 
         header('Content-Type: application/json');
         echo json_encode(['status' => 'ok', 'reading_id' => $readingId]);

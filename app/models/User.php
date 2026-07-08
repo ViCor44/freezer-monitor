@@ -42,8 +42,19 @@ class User {
     }
 
     public function getAll(): array {
-        return $this->db->query('SELECT id, name, email, role, approved, created_at FROM users ORDER BY created_at DESC')
-                        ->fetchAll();
+        try {
+            return $this->db->query(
+                'SELECT id, name, email, phone, role, approved,
+                        receive_sms_alarms, created_at
+                 FROM users ORDER BY created_at DESC'
+            )->fetchAll();
+        } catch (Throwable $e) {
+            // Fallback caso a migracao update_add_sms_alarms.sql ainda nao tenha corrido.
+            return $this->db->query(
+                'SELECT id, name, email, role, approved, created_at
+                 FROM users ORDER BY created_at DESC'
+            )->fetchAll();
+        }
     }
 
     public function create(string $name, string $email, string $password): int {
@@ -99,5 +110,21 @@ class User {
 
     public function countPending(): int {
         return (int) $this->db->query('SELECT COUNT(*) FROM users WHERE approved = 0')->fetchColumn();
+    }
+
+    /**
+     * Actualiza o numero de telefone e a preferencia de SMS.
+     * Ignorado silenciosamente se a migracao update_add_sms_alarms.sql
+     * ainda nao tiver sido executada.
+     */
+    public function updateSmsSettings(int $id, ?string $phone, bool $receiveSms): bool {
+        try {
+            $stmt = $this->db->prepare(
+                'UPDATE users SET phone = ?, receive_sms_alarms = ? WHERE id = ?'
+            );
+            return $stmt->execute([$phone, $receiveSms ? 1 : 0, $id]);
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 }

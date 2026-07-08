@@ -68,6 +68,31 @@ class AdminController {
         exit;
     }
 
+    public function updateUserSms(): void {
+        Auth::requireAdmin();
+        $this->verifyCsrf();
+
+        $id           = (int) ($_POST['id'] ?? 0);
+        $phoneRaw     = trim((string) ($_POST['phone'] ?? ''));
+        $receiveSms   = isset($_POST['receive_sms_alarms']);
+
+        $phone = $phoneRaw === '' ? null : $this->sanitizePhone($phoneRaw);
+
+        if ($id > 0) {
+            $this->userModel->updateSmsSettings($id, $phone, $receiveSms);
+        }
+
+        header('Location: ' . BASE_URL . '/admin/users');
+        exit;
+    }
+
+    private function sanitizePhone(string $phone): string {
+        $phone = trim($phone);
+        $hasPlus = strlen($phone) > 0 && $phone[0] === '+';
+        $digits  = preg_replace('/\D+/', '', $phone) ?? '';
+        return ($hasPlus ? '+' : '') . $digits;
+    }
+
     // ── Devices ────────────────────────────────────────────────────────────
 
     public function devices(): void {

@@ -9,11 +9,12 @@
 
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0 align-middle">
             <thead class="table-light">
                 <tr>
                     <th>Nome</th>
                     <th>Email</th>
+                    <th style="min-width:230px;">Telefone / SMS</th>
                     <th>Perfil</th>
                     <th>Estado</th>
                     <th>Registado</th>
@@ -25,6 +26,27 @@
                 <tr>
                     <td><?= htmlspecialchars($user['name']) ?></td>
                     <td><?= htmlspecialchars($user['email']) ?></td>
+                    <td>
+                        <form method="post" action="<?= BASE_URL ?>/admin/users/sms"
+                              class="d-flex flex-wrap gap-2 align-items-center">
+                            <input type="hidden" name="csrf_token" value="<?= Auth::csrfToken() ?>">
+                            <input type="hidden" name="id" value="<?= $user['id'] ?>">
+                            <input type="tel" name="phone" class="form-control form-control-sm"
+                                   style="max-width:150px;"
+                                   placeholder="+351..."
+                                   value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox"
+                                       id="sms-<?= $user['id'] ?>"
+                                       name="receive_sms_alarms"
+                                       <?= !empty($user['receive_sms_alarms']) ? 'checked' : '' ?>>
+                                <label class="form-check-label small" for="sms-<?= $user['id'] ?>">SMS</label>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" title="Guardar SMS">
+                                <i class="bi bi-save"></i>
+                            </button>
+                        </form>
+                    </td>
                     <td>
                         <span class="badge bg-<?= $user['role'] === ROLE_ADMIN ? 'primary' : 'secondary' ?>">
                             <?= htmlspecialchars($user['role']) ?>
