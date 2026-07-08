@@ -66,7 +66,9 @@ class SmsAlarmNotifier
                         (string) $prev['alarm_type'],
                         'OK',
                         $temperature,
-                        (string) $prev['first_active_at']
+                        (string) $prev['first_active_at'],
+                        (int) ($prev['age_seconds'] ?? 0),
+                        (string) ($prev['now_label'] ?? date('d/m H:i'))
                     );
                 }
                 $this->clearState($deviceId);
@@ -88,7 +90,9 @@ class SmsAlarmNotifier
                     (string) $prev['alarm_type'],
                     'OK',
                     $temperature,
-                    (string) $prev['first_active_at']
+                    (string) $prev['first_active_at'],
+                    (int) ($prev['age_seconds'] ?? 0),
+                    (string) ($prev['now_label'] ?? date('d/m H:i'))
                 );
             }
             $this->replaceState($deviceId, $currentType, $temperature);
@@ -107,7 +111,7 @@ class SmsAlarmNotifier
         $minMinutes = defined('SMS_ALARM_MIN_MINUTES') ? (int) SMS_ALARM_MIN_MINUTES : 60;
         if ($minMinutes < 0) { $minMinutes = 0; }
 
-        $ageSeconds = time() - strtotime((string) $state['first_active_at']);
+        $ageSeconds = (int) ($state['age_seconds'] ?? 0);
         if ($ageSeconds < ($minMinutes * 60)) {
             return;
         }
@@ -117,7 +121,9 @@ class SmsAlarmNotifier
             (string) $state['alarm_type'],
             'ALARME',
             $temperature,
-            (string) $state['first_active_at']
+            (string) $state['first_active_at'],
+            $ageSeconds,
+            (string) ($state['now_label'] ?? date('d/m H:i'))
         );
 
         if ($sentAny) {
@@ -129,9 +135,14 @@ class SmsAlarmNotifier
 
     private function getState(int $deviceId): ?array
     {
+        // O age_seconds e calculado no MySQL para nao depender do fuso
+        // horario do PHP (evita SMS prematuros por desvio de TZ entre PHP e
+        // MySQL).
         $stmt = $this->db->prepare(
             'SELECT device_id, alarm_type, first_active_at, last_active_at,
-                    last_temperature, sms_sent_at
+                    last_temperature, sms_sent_at,
+                    TIMESTAMPDIFF(SECOND, first_active_at, NOW()) AS age_seconds,
+                    DATE_FORMAT(NOW(), \'%d/%m %H:%i\')            AS now_label
              FROM device_temp_alarm_state WHERE device_id = ? LIMIT 1'
         );
         $stmt->execute([$deviceId]);
@@ -195,10 +206,12 @@ class SmsAlarmNotifier
         string $alarmType,
         string $event,
         float $temperature,
-        string $firstActiveAt
+        string $firstActiveAt,
+        int $ageSeconds = 0,
+        string $nowLabel = ''
     ): bool {
         $recipients = $this->getRecipients();
-        $message    = $this->buildMessage($device, $alarmType, $event, $temperature, $firstActiveAt);
+        $message    = $this->buildMessage($device, $alarmType, $event, $temperature, $firstActiveAt, $ageSeconds, $nowLabel);
         $deviceId   = (int) $device['id'];
 
         if (empty($recipients)) {
@@ -254,24 +267,26 @@ class SmsAlarmNotifier
         string $alarmType,
         string $event,
         float $temperature,
-        string $firstActiveAt
+        string $firstActiveAt,
+        int $ageSeconds = 0,
+        string $nowLabel = ''
     ): string {
         $deviceName = isset($device['name']) ? (string) $device['name'] : ('dispositivo_' . (int) $device['id']);
         $prefix     = $event === 'OK' ? '[OK]' : '[ALARME]';
-        $ts         = date('d/m H:i');
+        // Usa o carimbo devolvido pelo MySQL (NOW()) sempre que disponivel
+        // para garantir que o timestamp do SMS coincide com o do servidor de
+        // base de dados, independentemente do fuso horario do PHP.
+        $ts = $nowLabel !== '' ? $nowLabel : date('d/m H:i');
 
         if ($event === 'OK') {
-            $label = $alarmType === 'temp_high'
-                ? 'Temperatura normalizada'
-                : 'Temperatura normalizada';
-            $body = sprintf('%s %s: %s (%.1fC) (%s)',
-                $prefix, $deviceName, $label, $temperature, $ts);
+            $body = sprintf('%s %s: Temperatura normalizada (%.1fC) (%s)',
+                $prefix, $deviceName, $temperature, $ts);
         } else {
             $limit = $alarmType === 'temp_high'
                 ? sprintf('max=%.1fC', (float) ($device['temp_max'] ?? TEMP_MAX))
                 : sprintf('min=%.1fC', (float) ($device['temp_min'] ?? TEMP_MIN));
             $label = $alarmType === 'temp_high' ? 'Temperatura ALTA' : 'Temperatura BAIXA';
-            $durationMin = max(1, (int) round((time() - strtotime($firstActiveAt)) / 60));
+            $durationMin = max(1, (int) round($ageSeconds / 60));
             $body = sprintf('%s %s: %s %.1fC (%s) ha %d min (%s)',
                 $prefix, $deviceName, $label, $temperature, $limit, $durationMin, $ts);
         }

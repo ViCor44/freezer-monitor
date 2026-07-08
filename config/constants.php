@@ -3,6 +3,12 @@
 // ── Application ────────────────────────────────────────────────────────────
 define('ROOT', dirname(dirname(__FILE__)));
 
+// Fuso horario. Definido aqui (antes de qualquer date()/NOW()) para garantir
+// que PHP e MySQL usam a mesma referencia temporal e evitar desvios nas
+// verificacoes de "quanto tempo o alarme esta ativo".
+define('APP_TIMEZONE', getenv('APP_TIMEZONE') ?: 'Europe/Lisbon');
+date_default_timezone_set(APP_TIMEZONE);
+
 // Resolve BASE_URL automatically for XAMPP and virtual-host setups.
 $configuredBaseUrl = getenv('BASE_URL');
 if ($configuredBaseUrl) {

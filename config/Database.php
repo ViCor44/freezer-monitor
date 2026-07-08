@@ -21,6 +21,19 @@ class Database {
                 $this->password
             );
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+            // Alinha o fuso da sessao MySQL com o do PHP para que NOW()/CURDATE()
+            // e as leituras de DATETIME em PHP (strtotime, DateTime, etc.) usem
+            // sempre a mesma referencia horaria. Sem isto, um servidor com o
+            // OS/MySQL em UTC (ou noutro TZ) faz com que os alarmes com base em
+            // idade (>= 60 min) disparem prematuramente.
+            try {
+                $offset = (new DateTime('now'))->format('P'); // ex.: "+01:00"
+                $stmt = $this->conn->prepare('SET time_zone = ?');
+                $stmt->execute([$offset]);
+            } catch (Throwable $e) {
+                // Ignora: se a base de dados nao aceitar o SET, mantem TZ default.
+            }
         } catch (PDOException $exception) {
             echo 'Connection error: ' . $exception->getMessage();
         }
