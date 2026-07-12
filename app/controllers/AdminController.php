@@ -93,6 +93,17 @@ class AdminController {
         return ($hasPlus ? '+' : '') . $digits;
     }
 
+    private function sanitizeSmsAlarmMinutes(mixed $raw): int {
+        $default = defined('SMS_ALARM_MIN_MINUTES') ? (int) SMS_ALARM_MIN_MINUTES : 60;
+        if ($raw === null || $raw === '') {
+            return $default;
+        }
+        $value = (int) $raw;
+        if ($value < 0) { $value = 0; }
+        if ($value > 1440) { $value = 1440; }
+        return $value;
+    }
+
     // ── Devices ────────────────────────────────────────────────────────────
 
     public function devices(): void {
@@ -113,9 +124,10 @@ class AdminController {
         $calibrationOffset = (float) ($_POST['calibration_offset'] ?? 0);
         $active   = isset($_POST['active']) ? 1 : 0;
         $monitorDoorOpenings = isset($_POST['monitor_door_openings']) ? 1 : 0;
+        $smsAlarmMinutes = $this->sanitizeSmsAlarmMinutes($_POST['sms_alarm_minutes'] ?? null);
 
         if ($name && $devEui) {
-            $this->deviceModel->create($name, $devEui, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset);
+            $this->deviceModel->create($name, $devEui, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $smsAlarmMinutes);
         }
 
         header('Location: ' . BASE_URL . '/admin/devices');
@@ -134,9 +146,10 @@ class AdminController {
         $calibrationOffset = (float) ($_POST['calibration_offset'] ?? 0);
         $active   = (int) ($_POST['active'] ?? 0);
         $monitorDoorOpenings = isset($_POST['monitor_door_openings']) ? 1 : 0;
+        $smsAlarmMinutes = $this->sanitizeSmsAlarmMinutes($_POST['sms_alarm_minutes'] ?? null);
 
         if ($id && $name) {
-            $this->deviceModel->update($id, $name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset);
+            $this->deviceModel->update($id, $name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $smsAlarmMinutes);
         }
 
         header('Location: ' . BASE_URL . '/admin/devices');

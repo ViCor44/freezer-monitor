@@ -22,6 +22,7 @@
                     <th>Min °C</th>
                     <th>Correção</th>
                     <th>Monitor porta</th>
+                    <th>SMS (min)</th>
                     <th>Ultima comunicacao</th>
                     <th>Estado</th>
                     <th class="text-end">Acoes</th>
@@ -41,6 +42,7 @@
                             <?= !empty($d['monitor_door_openings']) ? 'Ativa' : 'Desativada' ?>
                         </span>
                     </td>
+                    <td><?= (int) ($d['sms_alarm_minutes'] ?? (defined('SMS_ALARM_MIN_MINUTES') ? SMS_ALARM_MIN_MINUTES : 60)) ?></td>
                     <td><?= $d['last_seen_at'] ? date('Y-m-d H:i', strtotime($d['last_seen_at'])) : '—' ?></td>
                     <td>
                         <span class="device-status <?= $d['active'] ? 'device-status-active' : 'device-status-inactive' ?>">
@@ -57,6 +59,7 @@
                             data-temp-min="<?= $d['temp_min'] ?>"
                             data-calibration-offset="<?= (float) ($d['calibration_offset'] ?? 0) ?>"
                             data-monitor-door="<?= (int) ($d['monitor_door_openings'] ?? 1) ?>"
+                            data-sms-alarm-minutes="<?= (int) ($d['sms_alarm_minutes'] ?? (defined('SMS_ALARM_MIN_MINUTES') ? SMS_ALARM_MIN_MINUTES : 60)) ?>"
                             data-active="<?= $d['active'] ?>">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -93,6 +96,11 @@
                         <label class="form-label">Fator de calibracao (°C)</label>
                         <input type="number" name="calibration_offset" class="form-control" value="0" step="0.1">
                         <div class="form-text">Use valores positivos para somar e negativos para subtrair.</div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">Tempo fora do intervalo para envio de SMS (min)</label>
+                        <input type="number" name="sms_alarm_minutes" class="form-control" value="60" min="0" max="1440" step="1">
+                        <div class="form-text">Minutos consecutivos com temperatura fora do intervalo antes de disparar o SMS.</div>
                     </div>
                     <div class="mt-3">
                         <div class="form-check form-switch">
@@ -132,6 +140,11 @@
                         <div class="form-text">Use valores positivos para somar e negativos para subtrair.</div>
                     </div>
                     <div class="mt-3">
+                        <label class="form-label">Tempo fora do intervalo para envio de SMS (min)</label>
+                        <input type="number" name="sms_alarm_minutes" id="editDeviceSmsAlarmMinutes" class="form-control" min="0" max="1440" step="1">
+                        <div class="form-text">Minutos consecutivos com temperatura fora do intervalo antes de disparar o SMS.</div>
+                    </div>
+                    <div class="mt-3">
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="monitor_door_openings" id="editDeviceMonitorDoor" value="1">
                             <label class="form-check-label" for="editDeviceMonitorDoor">Monitorizacao da abertura de porta</label>
@@ -159,6 +172,7 @@ if (editModal) {
         document.getElementById('editDeviceTempMax').value  = btn.dataset.tempMax;
         document.getElementById('editDeviceTempMin').value  = btn.dataset.tempMin;
         document.getElementById('editDeviceCalibrationOffset').value = btn.dataset.calibrationOffset ?? '0';
+        document.getElementById('editDeviceSmsAlarmMinutes').value = btn.dataset.smsAlarmMinutes ?? '60';
         document.getElementById('editDeviceMonitorDoor').checked = btn.dataset.monitorDoor === '1';
         document.getElementById('editDeviceActive').checked = btn.dataset.active === '1';
     });

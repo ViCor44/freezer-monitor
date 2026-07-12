@@ -109,6 +109,9 @@ class SmsAlarmNotifier
         }
 
         $minMinutes = defined('SMS_ALARM_MIN_MINUTES') ? (int) SMS_ALARM_MIN_MINUTES : 60;
+        if (array_key_exists('sms_alarm_minutes', $device) && $device['sms_alarm_minutes'] !== null && $device['sms_alarm_minutes'] !== '') {
+            $minMinutes = (int) $device['sms_alarm_minutes'];
+        }
         if ($minMinutes < 0) { $minMinutes = 0; }
 
         $ageSeconds = (int) ($state['age_seconds'] ?? 0);

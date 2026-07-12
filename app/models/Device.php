@@ -14,6 +14,7 @@ class Device {
     private $table = 'devices';
     private ?bool $hasMonitorDoorOpeningsColumn = null;
     private ?bool $hasCalibrationOffsetColumn = null;
+    private ?bool $hasSmsAlarmMinutesColumn = null;
 
     public function __construct($db) {  // ← Recebe $db
         $this->db = $db;
@@ -142,10 +143,12 @@ class Device {
         float $tempMin = TEMP_MIN,
         int $active = 1,
         int $monitorDoorOpenings = 1,
-        float $calibrationOffset = 0.0
+        float $calibrationOffset = 0.0,
+        int $smsAlarmMinutes = 60
     ): int {
         $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
         $supportsCalibrationOffset = $this->supportsCalibrationOffset();
+        $supportsSmsAlarmMinutes = $this->supportsSmsAlarmMinutes();
 
         $columns = ['name', 'dev_eui'];
         $placeholders = ['?', '?'];
@@ -179,6 +182,12 @@ class Device {
             $values[] = $calibrationOffset;
         }
 
+        if ($supportsSmsAlarmMinutes) {
+            $columns[] = 'sms_alarm_minutes';
+            $placeholders[] = '?';
+            $values[] = $smsAlarmMinutes;
+        }
+
         $sql = sprintf(
             'INSERT INTO devices (%s) VALUES (%s)',
             implode(', ', $columns),
@@ -199,10 +208,12 @@ class Device {
         float $tempMin,
         int $active,
         int $monitorDoorOpenings,
-        float $calibrationOffset = 0.0
+        float $calibrationOffset = 0.0,
+        int $smsAlarmMinutes = 60
     ): bool {
         $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
         $supportsCalibrationOffset = $this->supportsCalibrationOffset();
+        $supportsSmsAlarmMinutes = $this->supportsSmsAlarmMinutes();
 
         $setParts = ['name = ?'];
         $values = [$name];
@@ -227,6 +238,11 @@ class Device {
         if ($supportsCalibrationOffset) {
             $setParts[] = 'calibration_offset = ?';
             $values[] = $calibrationOffset;
+        }
+
+        if ($supportsSmsAlarmMinutes) {
+            $setParts[] = 'sms_alarm_minutes = ?';
+            $values[] = $smsAlarmMinutes;
         }
 
         $values[] = $id;
@@ -265,6 +281,21 @@ class Device {
         }
 
         return $this->hasCalibrationOffsetColumn;
+    }
+
+    public function supportsSmsAlarmMinutes(): bool {
+        if ($this->hasSmsAlarmMinutesColumn !== null) {
+            return $this->hasSmsAlarmMinutesColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'sms_alarm_minutes'");
+            $this->hasSmsAlarmMinutesColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $this->hasSmsAlarmMinutesColumn = false;
+        }
+
+        return $this->hasSmsAlarmMinutesColumn;
     }
 
     public function updateLastSeen(int $id): bool {

@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS devices (
     temp_max        DECIMAL(5,2)   NOT NULL DEFAULT 5.00,
     temp_min        DECIMAL(5,2)   NOT NULL DEFAULT -25.00,
     calibration_offset DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    sms_alarm_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 60,
     door_open       TINYINT(1)     NOT NULL DEFAULT 0,
     door_updated_at DATETIME       DEFAULT NULL,
     monitor_door_openings TINYINT(1) NOT NULL DEFAULT 1,
