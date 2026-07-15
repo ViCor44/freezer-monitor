@@ -275,6 +275,12 @@ class SmsAlarmNotifier
         string $nowLabel = ''
     ): string {
         $deviceName = isset($device['name']) ? (string) $device['name'] : ('dispositivo_' . (int) $device['id']);
+        $location   = isset($device['location']) ? trim((string) $device['location']) : '';
+        if ($location !== '') {
+            // Prefixa com a localizacao para distinguir camaras com o mesmo nome
+            // (ex.: "Economato/Camara 1 Cong").
+            $deviceName = $location . '/' . $deviceName;
+        }
         $prefix     = $event === 'OK' ? '[OK]' : '[ALARME]';
         // Usa o carimbo devolvido pelo MySQL (NOW()) sempre que disponivel
         // para garantir que o timestamp do SMS coincide com o do servidor de
