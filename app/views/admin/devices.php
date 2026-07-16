@@ -23,6 +23,7 @@
                     <th>Correção</th>
                     <th>Monitor porta</th>
                     <th>SMS (min)</th>
+                    <th>SMS ativo</th>
                     <th>Ultima comunicacao</th>
                     <th>Estado</th>
                     <th class="text-end">Acoes</th>
@@ -43,6 +44,11 @@
                         </span>
                     </td>
                     <td><?= (int) ($d['sms_alarm_minutes'] ?? (defined('SMS_ALARM_MIN_MINUTES') ? SMS_ALARM_MIN_MINUTES : 60)) ?></td>
+                    <td>
+                        <span class="badge bg-<?= !empty($d['sms_enabled']) ? 'success' : 'secondary' ?>">
+                            <?= !empty($d['sms_enabled']) ? 'Sim' : 'Não' ?>
+                        </span>
+                    </td>
                     <td><?= $d['last_seen_at'] ? date('Y-m-d H:i', strtotime($d['last_seen_at'])) : '—' ?></td>
                     <td>
                         <span class="device-status <?= $d['active'] ? 'device-status-active' : 'device-status-inactive' ?>">
@@ -60,6 +66,7 @@
                             data-calibration-offset="<?= (float) ($d['calibration_offset'] ?? 0) ?>"
                             data-monitor-door="<?= (int) ($d['monitor_door_openings'] ?? 1) ?>"
                             data-sms-alarm-minutes="<?= (int) ($d['sms_alarm_minutes'] ?? (defined('SMS_ALARM_MIN_MINUTES') ? SMS_ALARM_MIN_MINUTES : 60)) ?>"
+                            data-sms-enabled="<?= isset($d['sms_enabled']) ? (int) $d['sms_enabled'] : 1 ?>"
                             data-active="<?= $d['active'] ?>">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -104,6 +111,10 @@
                     </div>
                     <div class="mt-3">
                         <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="sms_enabled" value="1" id="addDeviceSmsEnabled" checked>
+                            <label class="form-check-label" for="addDeviceSmsEnabled">Envio de SMS ativo</label>
+                        </div>
+                        <div class="form-check form-switch mt-2">
                             <input class="form-check-input" type="checkbox" name="monitor_door_openings" value="1" id="addDeviceMonitorDoor" checked>
                             <label class="form-check-label" for="addDeviceMonitorDoor">Monitorizacao da abertura de porta</label>
                         </div>
@@ -146,6 +157,10 @@
                     </div>
                     <div class="mt-3">
                         <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="sms_enabled" id="editDeviceSmsEnabled" value="1">
+                            <label class="form-check-label" for="editDeviceSmsEnabled">Envio de SMS ativo</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="monitor_door_openings" id="editDeviceMonitorDoor" value="1">
                             <label class="form-check-label" for="editDeviceMonitorDoor">Monitorizacao da abertura de porta</label>
                         </div>
@@ -173,6 +188,7 @@ if (editModal) {
         document.getElementById('editDeviceTempMin').value  = btn.dataset.tempMin;
         document.getElementById('editDeviceCalibrationOffset').value = btn.dataset.calibrationOffset ?? '0';
         document.getElementById('editDeviceSmsAlarmMinutes').value = btn.dataset.smsAlarmMinutes ?? '60';
+        document.getElementById('editDeviceSmsEnabled').checked = btn.dataset.smsEnabled !== '0';
         document.getElementById('editDeviceMonitorDoor').checked = btn.dataset.monitorDoor === '1';
         document.getElementById('editDeviceActive').checked = btn.dataset.active === '1';
     });

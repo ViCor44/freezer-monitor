@@ -15,6 +15,7 @@ class Device {
     private ?bool $hasMonitorDoorOpeningsColumn = null;
     private ?bool $hasCalibrationOffsetColumn = null;
     private ?bool $hasSmsAlarmMinutesColumn = null;
+    private ?bool $hasSmsEnabledColumn = null;
 
     public function __construct($db) {  // ← Recebe $db
         $this->db = $db;
@@ -144,11 +145,13 @@ class Device {
         int $active = 1,
         int $monitorDoorOpenings = 1,
         float $calibrationOffset = 0.0,
-        int $smsAlarmMinutes = 60
+        int $smsAlarmMinutes = 60,
+        int $smsEnabled = 1
     ): int {
         $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
         $supportsCalibrationOffset = $this->supportsCalibrationOffset();
         $supportsSmsAlarmMinutes = $this->supportsSmsAlarmMinutes();
+        $supportsSmsEnabled = $this->supportsSmsEnabled();
 
         $columns = ['name', 'dev_eui'];
         $placeholders = ['?', '?'];
@@ -188,6 +191,12 @@ class Device {
             $values[] = $smsAlarmMinutes;
         }
 
+        if ($supportsSmsEnabled) {
+            $columns[] = 'sms_enabled';
+            $placeholders[] = '?';
+            $values[] = $smsEnabled;
+        }
+
         $sql = sprintf(
             'INSERT INTO devices (%s) VALUES (%s)',
             implode(', ', $columns),
@@ -209,11 +218,13 @@ class Device {
         int $active,
         int $monitorDoorOpenings,
         float $calibrationOffset = 0.0,
-        int $smsAlarmMinutes = 60
+        int $smsAlarmMinutes = 60,
+        int $smsEnabled = 1
     ): bool {
         $supportsDoorMonitoring = $this->supportsDoorMonitoringOption();
         $supportsCalibrationOffset = $this->supportsCalibrationOffset();
         $supportsSmsAlarmMinutes = $this->supportsSmsAlarmMinutes();
+        $supportsSmsEnabled = $this->supportsSmsEnabled();
 
         $setParts = ['name = ?'];
         $values = [$name];
@@ -243,6 +254,11 @@ class Device {
         if ($supportsSmsAlarmMinutes) {
             $setParts[] = 'sms_alarm_minutes = ?';
             $values[] = $smsAlarmMinutes;
+        }
+
+        if ($supportsSmsEnabled) {
+            $setParts[] = 'sms_enabled = ?';
+            $values[] = $smsEnabled;
         }
 
         $values[] = $id;
@@ -296,6 +312,21 @@ class Device {
         }
 
         return $this->hasSmsAlarmMinutesColumn;
+    }
+
+    public function supportsSmsEnabled(): bool {
+        if ($this->hasSmsEnabledColumn !== null) {
+            return $this->hasSmsEnabledColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'sms_enabled'");
+            $this->hasSmsEnabledColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $this->hasSmsEnabledColumn = false;
+        }
+
+        return $this->hasSmsEnabledColumn;
     }
 
     public function updateLastSeen(int $id): bool {

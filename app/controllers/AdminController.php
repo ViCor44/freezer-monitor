@@ -125,9 +125,10 @@ class AdminController {
         $active   = isset($_POST['active']) ? 1 : 0;
         $monitorDoorOpenings = isset($_POST['monitor_door_openings']) ? 1 : 0;
         $smsAlarmMinutes = $this->sanitizeSmsAlarmMinutes($_POST['sms_alarm_minutes'] ?? null);
+        $smsEnabled = isset($_POST['sms_enabled']) ? 1 : 0;
 
         if ($name && $devEui) {
-            $this->deviceModel->create($name, $devEui, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $smsAlarmMinutes);
+            $this->deviceModel->create($name, $devEui, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $smsAlarmMinutes, $smsEnabled);
         }
 
         header('Location: ' . BASE_URL . '/admin/devices');
@@ -147,9 +148,10 @@ class AdminController {
         $active   = (int) ($_POST['active'] ?? 0);
         $monitorDoorOpenings = isset($_POST['monitor_door_openings']) ? 1 : 0;
         $smsAlarmMinutes = $this->sanitizeSmsAlarmMinutes($_POST['sms_alarm_minutes'] ?? null);
+        $smsEnabled = isset($_POST['sms_enabled']) ? 1 : 0;
 
         if ($id && $name) {
-            $this->deviceModel->update($id, $name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $smsAlarmMinutes);
+            $this->deviceModel->update($id, $name, $location, $tempMax, $tempMin, $active, $monitorDoorOpenings, $calibrationOffset, $smsAlarmMinutes, $smsEnabled);
         }
 
         header('Location: ' . BASE_URL . '/admin/devices');

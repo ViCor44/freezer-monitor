@@ -40,6 +40,9 @@ class SmsAlarmNotifier
         if (!defined('SMS_ENABLED') || !SMS_ENABLED) {
             return;
         }
+        if (array_key_exists('sms_enabled', $device) && !(int) $device['sms_enabled']) {
+            return;
+        }
         if (!$this->tablesExist()) {
             return;
         }
